@@ -73,7 +73,7 @@ const cask = `cask "heybotos" do
     strategy :github_latest
   end
 
-  depends_on macos: ">= :monterey"
+  depends_on macos: :monterey
 
   app "HeyBotOS.app"
   binary "#{appdir}/HeyBotOS.app/Contents/Resources/heybotos/bin/heybotos"
