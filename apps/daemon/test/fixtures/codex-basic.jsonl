@@ -1,0 +1,13 @@
+{"type":"thread.started","thread_id":"01a1cc2f-cefb-76a0-8760-0c23fc8cfa6d"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll read `note.txt`, run the command, then create `made.txt` and report the result."}}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"/bin/zsh -lc 'cat note.txt'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"/bin/zsh -lc 'cat note.txt'","aggregated_output":"hello\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'echo spike-ok'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"/bin/zsh -lc 'echo spike-ok'","aggregated_output":"spike-ok\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"command_execution","command":"/bin/zsh -lc \"printf 'hi\\\\n' > made.txt\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"command_execution","command":"/bin/zsh -lc \"printf 'hi\\\\n' > made.txt\"","aggregated_output":"","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_4","type":"command_execution","command":"/bin/zsh -lc 'cat made.txt'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_4","type":"command_execution","command":"/bin/zsh -lc 'cat made.txt'","aggregated_output":"hi\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_5","type":"agent_message","text":"{\"status\":\"done\",\"summary\":\"Read note.txt (hello), ran echo spike-ok, and created made.txt containing hi.\",\"files_changed\":[\"made.txt\"],\"verification\":\"Command output was spike-ok; verified made.txt contains hi.\" ,\"question\":\"\",\"follow_ups\":[]}"}}
+{"type":"turn.completed","usage":{"input_tokens":65362,"cached_input_tokens":48384,"cache_write_input_tokens":0,"output_tokens":205,"reasoning_output_tokens":0}}

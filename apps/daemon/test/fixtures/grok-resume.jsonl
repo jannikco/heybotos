@@ -1,0 +1,59 @@
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","send_feedback","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact"]}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","send_feedback","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact"]}
+{"type":"thought","data":"I need to recall th"}
+{"type":"thought","data":"e name of the file "}
+{"type":"thought","data":"I created without c"}
+{"type":"thought","data":"hecking the disk."}
+{"type":"text","data":"{\"st"}
+{"type":"text","data":"atus"}
+{"type":"text","data":"\":\"d"}
+{"type":"text","data":"one\""}
+{"type":"text","data":",\"su"}
+{"type":"text","data":"mmar"}
+{"type":"text","data":"y\":\""}
+{"type":"text","data":"The "}
+{"type":"text","data":"file"}
+{"type":"text","data":" I c"}
+{"type":"text","data":"reat"}
+{"type":"text","data":"ed w"}
+{"type":"text","data":"as m"}
+{"type":"text","data":"ade."}
+{"type":"text","data":"txt."}
+{"type":"text","data":"\",\"f"}
+{"type":"text","data":"iles"}
+{"type":"text","data":"_cha"}
+{"type":"text","data":"nged"}
+{"type":"text","data":"\":[]"}
+{"type":"text","data":",\"ve"}
+{"type":"text","data":"rifi"}
+{"type":"text","data":"cati"}
+{"type":"text","data":"on\":"}
+{"type":"text","data":"\"Rec"}
+{"type":"text","data":"alle"}
+{"type":"text","data":"d fr"}
+{"type":"text","data":"om t"}
+{"type":"text","data":"he p"}
+{"type":"text","data":"revi"}
+{"type":"text","data":"ous "}
+{"type":"text","data":"turn"}
+{"type":"text","data":"; di"}
+{"type":"text","data":"d no"}
+{"type":"text","data":"t re"}
+{"type":"text","data":"ad t"}
+{"type":"text","data":"he d"}
+{"type":"text","data":"isk."}
+{"type":"text","data":"\",\"q"}
+{"type":"text","data":"uest"}
+{"type":"text","data":"ion\""}
+{"type":"text","data":":\"\","}
+{"type":"text","data":"\"fol"}
+{"type":"text","data":"low_"}
+{"type":"text","data":"ups\""}
+{"type":"text","data":":[]}"}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","send_feedback","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact"]}
+{"type":"usage","usage":{"input_tokens":26159,"output_tokens":96,"cache_read_input_tokens":1152,"cache_creation_input_tokens":0,"reasoning_tokens":46}}
+{"type":"end","stopReason":"end_turn","sessionId":"00000001-0000-4000-8000-000000000001","requestId":"00000002-0000-4000-8000-000000000002","cwd":"/work/spike/gk","usage":{"input_tokens":26159,"cache_read_input_tokens":1152,"cache_creation_input_tokens":0,"output_tokens":96,"reasoning_tokens":46,"total_tokens":27407},"num_turns":1,"total_cost_usd":0.05347,"total_cost_usd_ticks":534700000,"modelUsage":{"model-build":{"inputTokens":26159,"outputTokens":96,"cacheReadInputTokens":1152,"cacheCreationInputTokens":0,"modelCalls":1,"costUSD":0.05347}},"structuredOutput":{"status":"done","summary":"The file I created was made.txt.","files_changed":[],"verification":"Recalled from the previous turn; did not read the disk.","question":"","follow_ups":[]}}

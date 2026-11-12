@@ -1,0 +1,151 @@
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","send_feedback","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact"]}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","send_feedback","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact"]}
+{"type":"thought","data":"I will read no"}
+{"type":"thought","data":"te.txt first."}
+{"type":"text","data":"{\"st"}
+{"type":"text","data":"atus"}
+{"type":"text","data":"\":\"d"}
+{"type":"text","data":"one\""}
+{"type":"text","data":",\"su"}
+{"type":"text","data":"mmar"}
+{"type":"text","data":"y\":\""}
+{"type":"text","data":"plac"}
+{"type":"text","data":"ehol"}
+{"type":"text","data":"der\""}
+{"type":"text","data":",\"fi"}
+{"type":"text","data":"les_"}
+{"type":"text","data":"chan"}
+{"type":"text","data":"ged\""}
+{"type":"text","data":":[],"}
+{"type":"text","data":"\"ver"}
+{"type":"text","data":"ific"}
+{"type":"text","data":"atio"}
+{"type":"text","data":"n\":\""}
+{"type":"text","data":"\",\"q"}
+{"type":"text","data":"uest"}
+{"type":"text","data":"ion\""}
+{"type":"text","data":":\"\","}
+{"type":"text","data":"\"fol"}
+{"type":"text","data":"low_"}
+{"type":"text","data":"ups\""}
+{"type":"text","data":":[]}"}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","send_feedback","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact"]}
+{"type":"usage","usage":{"input_tokens":16565,"output_tokens":195,"cache_read_input_tokens":10112,"cache_creation_input_tokens":0,"reasoning_tokens":81}}
+{"type":"tool_call","toolCallId":"call-00000001-0000-4000-8000-000000000001-0","title":"read_file","kind":"read","status":"pending","toolName":"read_file","rawInput":{"target_file":"/work/spike/gk/note.txt"},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"call-00000001-0000-4000-8000-000000000001-0","status":null,"content":[],"rawOutput":null,"locations":[{"path":"/work/spike/gk/note.txt"}]}
+{"type":"tool_call","toolCallId":"call-00000001-0000-4000-8000-000000000001-1","title":"run_terminal_command","kind":"execute","status":"pending","toolName":"run_terminal_command","rawInput":{"command":"echo spike-ok","description":"Print spike-ok to confirm shell"},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"call-00000001-0000-4000-8000-000000000001-1","status":null,"content":[{"type":"content","content":{"type":"text","text":"Print spike-ok to confirm shell"}}],"rawOutput":null,"locations":[]}
+{"type":"tool_call_update","toolCallId":"call-00000001-0000-4000-8000-000000000001-1","status":"in_progress","content":[{"type":"content","content":{"type":"text","text":""}}],"rawOutput":{"type":"Bash","output":[],"output_for_prompt":"","exit_code":0,"command":"echo spike-ok","truncated":false,"signal":null,"timed_out":false,"description":null,"current_dir":"/work/spike/gk","output_file":"","total_bytes":0},"locations":[]}
+{"type":"tool_call_update","toolCallId":"call-00000001-0000-4000-8000-000000000001-0","status":"completed","content":[{"type":"content","content":{"type":"text","text":"1→hello\n"}}],"rawOutput":{"type":"ReadFile","FileContent":{"content":"1→hello\n","content_concise":"1→hello\n","absolute_path":"/work/spike/gk/note.txt","offset":null,"raw_output":"hello\n","total_lines":1}},"locations":[]}
+{"type":"tool_call_update","toolCallId":"call-00000001-0000-4000-8000-000000000001-1","status":"in_progress","content":[{"type":"content","content":{"type":"text","text":"spike-ok\n"}}],"rawOutput":{"type":"Bash","output":[115,112,105,107,101,45,111,107,10],"output_for_prompt":"spike-ok\n","exit_code":0,"command":"echo spike-ok","truncated":false,"signal":null,"timed_out":false,"description":null,"current_dir":"/work/spike/gk","output_file":"","total_bytes":9},"locations":[]}
+{"type":"tool_call_update","toolCallId":"call-00000001-0000-4000-8000-000000000001-1","status":"completed","content":[{"type":"content","content":{"type":"text","text":"spike-ok\n"}}],"rawOutput":{"type":"Bash","output":[115,112,105,107,101,45,111,107,10],"output_for_prompt":"exit: 0\nspike-ok\n","exit_code":0,"command":"echo spike-ok","truncated":false,"signal":null,"timed_out":false,"description":"Print spike-ok to confirm shell","current_dir":"/work/spike/gk","output_file":"/Users/owner/.grok/sessions/%2Fwork%2Fspike%2Fgk/00000002-0000-4000-8000-000000000002/terminal/call-00000001-0000-4000-8000-000000000001-1.log","total_bytes":9,"was_bare_echo":true},"locations":[]}
+{"type":"thought","data":"I read note.txt."}
+{"type":"thought","data":" It says hello."}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","send_feedback","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact"]}
+{"type":"usage","usage":{"input_tokens":276,"output_tokens":114,"cache_read_input_tokens":26624,"cache_creation_input_tokens":0,"reasoning_tokens":52}}
+{"type":"tool_call","toolCallId":"call-00000003-0000-4000-8000-000000000003-2","title":"write","kind":"write","status":"pending","toolName":"write","rawInput":{"file_path":"/work/spike/gk/made.txt","content":"hi\n"},"content":[],"locations":[]}
+{"type":"tool_call_update","toolCallId":"call-00000003-0000-4000-8000-000000000003-2","status":null,"content":[{"type":"diff","path":"/work/spike/gk/made.txt","oldText":"","newText":"hi\n"}],"rawOutput":null,"locations":[{"path":"/work/spike/gk/made.txt"}]}
+{"type":"tool_call_update","toolCallId":"call-00000003-0000-4000-8000-000000000003-2","status":"completed","content":[{"type":"diff","path":"/work/spike/gk/made.txt","oldText":"","newText":"hi\n","_meta":{"details":[{"old_string":"","old_line":1,"new_string":"hi\n","new_line":1,"context_before":"","context_after":"","line_prefix":""}]}}],"rawOutput":{"type":"SearchReplace","EditsApplied":{"old_string":"","new_string":"hi\n","tool_output_for_prompt":"The file /work/spike/gk/made.txt has been created.","tool_output_for_prompt_concise":"The file /work/spike/gk/made.txt has been created.","absolute_path":"/work/spike/gk/made.txt","edits":{"details":[{"old_string":"","old_line":1,"new_string":"hi\n","new_line":1,"context_before":"","context_after":"","line_prefix":""}]}}},"locations":[]}
+{"type":"thought","data":"I will verify th"}
+{"type":"thought","data":"e file content."}
+{"type":"text","data":"{\"st"}
+{"type":"text","data":"atus"}
+{"type":"text","data":"\":\"d"}
+{"type":"text","data":"one\""}
+{"type":"text","data":",\"su"}
+{"type":"text","data":"mmar"}
+{"type":"text","data":"y\":\""}
+{"type":"text","data":"Read"}
+{"type":"text","data":" not"}
+{"type":"text","data":"e.tx"}
+{"type":"text","data":"t (i"}
+{"type":"text","data":"t co"}
+{"type":"text","data":"ntai"}
+{"type":"text","data":"ns \\"}
+{"type":"text","data":"\"hel"}
+{"type":"text","data":"lo\\\""}
+{"type":"text","data":"), r"}
+{"type":"text","data":"an e"}
+{"type":"text","data":"cho "}
+{"type":"text","data":"spik"}
+{"type":"text","data":"e-ok"}
+{"type":"text","data":" (ex"}
+{"type":"text","data":"it 0"}
+{"type":"text","data":", ou"}
+{"type":"text","data":"tput"}
+{"type":"text","data":" spi"}
+{"type":"text","data":"ke-o"}
+{"type":"text","data":"k), "}
+{"type":"text","data":"and "}
+{"type":"text","data":"wrot"}
+{"type":"text","data":"e ma"}
+{"type":"text","data":"de.t"}
+{"type":"text","data":"xt w"}
+{"type":"text","data":"ith "}
+{"type":"text","data":"the "}
+{"type":"text","data":"word"}
+{"type":"text","data":" hi."}
+{"type":"text","data":"\",\"f"}
+{"type":"text","data":"iles"}
+{"type":"text","data":"_cha"}
+{"type":"text","data":"nged"}
+{"type":"text","data":"\":[\""}
+{"type":"text","data":"made"}
+{"type":"text","data":".txt"}
+{"type":"text","data":"\"],\""}
+{"type":"text","data":"veri"}
+{"type":"text","data":"fica"}
+{"type":"text","data":"tion"}
+{"type":"text","data":"\":\"S"}
+{"type":"text","data":"hell"}
+{"type":"text","data":" pri"}
+{"type":"text","data":"nted"}
+{"type":"text","data":" spi"}
+{"type":"text","data":"ke-o"}
+{"type":"text","data":"k wi"}
+{"type":"text","data":"th e"}
+{"type":"text","data":"xit "}
+{"type":"text","data":"code"}
+{"type":"text","data":" 0. "}
+{"type":"text","data":"note"}
+{"type":"text","data":".txt"}
+{"type":"text","data":" rea"}
+{"type":"text","data":"d as"}
+{"type":"text","data":" the"}
+{"type":"text","data":" sin"}
+{"type":"text","data":"gle "}
+{"type":"text","data":"word"}
+{"type":"text","data":" hel"}
+{"type":"text","data":"lo. "}
+{"type":"text","data":"made"}
+{"type":"text","data":".txt"}
+{"type":"text","data":" was"}
+{"type":"text","data":" wri"}
+{"type":"text","data":"tten"}
+{"type":"text","data":" wit"}
+{"type":"text","data":"h th"}
+{"type":"text","data":"e co"}
+{"type":"text","data":"nten"}
+{"type":"text","data":"ts h"}
+{"type":"text","data":"i.\","}
+{"type":"text","data":"\"que"}
+{"type":"text","data":"stio"}
+{"type":"text","data":"n\":\""}
+{"type":"text","data":"\",\"f"}
+{"type":"text","data":"ollo"}
+{"type":"text","data":"w_up"}
+{"type":"text","data":"s\":["}
+{"type":"text","data":"]}"}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"text","data":""}
+{"type":"available_commands","tools":["run_terminal_command","read_file","search_replace","list_dir","grep","kill_command_or_subagent","todo_write","get_command_or_subagent_output","spawn_subagent","scheduler_create","scheduler_delete","scheduler_list","monitor","search_tool","use_tool","workflow","enter_plan_mode","exit_plan_mode","ask_user_question","send_feedback","web_search","web_fetch","image_gen","image_edit","image_to_video","reference_to_video","write"],"commands":["compact"]}
+{"type":"usage","usage":{"input_tokens":25539,"output_tokens":192,"cache_read_input_tokens":1536,"cache_creation_input_tokens":0,"reasoning_tokens":97}}
+{"type":"end","stopReason":"end_turn","sessionId":"00000002-0000-4000-8000-000000000002","requestId":"00000004-0000-4000-8000-000000000004","cwd":"/work/spike/gk","usage":{"input_tokens":42380,"cache_read_input_tokens":38272,"cache_creation_input_tokens":0,"output_tokens":501,"reasoning_tokens":230,"total_tokens":81153},"num_turns":3,"total_cost_usd":0.106902,"total_cost_usd_ticks":1069020000,"modelUsage":{"model-build":{"inputTokens":42380,"outputTokens":501,"cacheReadInputTokens":38272,"cacheCreationInputTokens":0,"modelCalls":3,"costUSD":0.106902}},"structuredOutput":{"status":"done","summary":"Read note.txt (it contains \"hello\"), ran echo spike-ok (exit 0, output spike-ok), and wrote made.txt with the word hi.","files_changed":["made.txt"],"verification":"Shell printed spike-ok with exit code 0. note.txt read as the single word hello. made.txt was written with the contents hi.","question":"","follow_ups":[]}}

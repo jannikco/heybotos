@@ -1,0 +1,32 @@
+{
+  "name": "heybotos",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "daemon": "node apps/daemon/src/main.ts",
+    "dev:web": "pnpm --filter @heybotos/web dev",
+    "build": "pnpm --filter @heybotos/web build",
+    "start": "pnpm build && node apps/daemon/src/main.ts",
+    "heybotos": "node apps/daemon/src/cli.ts",
+    "test": "pnpm --filter @heybotos/daemon test && pnpm --filter @heybotos/web test",
+    "typecheck": "pnpm -r typecheck",
+    "smoke": "node apps/daemon/scripts/smoke.ts",
+    "demo": "node apps/daemon/scripts/demo.ts",
+    "e2e": "pnpm build && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  },
+  "license": "MIT",
+  "description": "One manager agent you talk to, a team of worker agents that does the work. Runs the official coding CLIs on your own subscriptions.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jannikco/heybotos.git"
+  },
+  "homepage": "https://github.com/jannikco/heybotos"
+}

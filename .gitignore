@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+test-results/
+playwright-report/
+.playwright-mcp/
+e2e/.home/
+apps/desktop/build/icon.iconset/
+apps/desktop/build/icon-1024.png
+
+# Never in the repository: anything with keys, data or private notes in it.
+.env*
+*.db
+*.db-*
+.claude/
+docs/PROGRESS.md

@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"01a1cc2f-cefb-76a0-8760-0c23fc8cfa6d"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"status\":\"done\",\"summary\":\"The file I created was made.txt.\",\"files_changed\":[\"made.txt\"],\"verification\":\"Recalled from the conversation without accessing disk.\",\"question\":\"\",\"follow_ups\":[]}"}}
+{"type":"turn.completed","usage":{"input_tokens":81970,"cached_input_tokens":64768,"cache_write_input_tokens":0,"output_tokens":255,"reasoning_output_tokens":0}}

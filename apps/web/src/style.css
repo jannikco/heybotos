@@ -1,0 +1,874 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+@import 'tailwindcss';
+
+/*
+ * A pro tool: dense, quiet, fast to read. One typeface, small sizes, hairlines instead of boxes.
+ * The colours are HeyBotOS's own: the logo's navy as the ground, its blue as the accent, and its
+ * gradient where the product itself speaks (the logo, the main action). Status colours say something
+ * and nothing else: blue working, amber needs you, green done, red failed.
+ * Dark is the default; a light theme is one switch away.
+ */
+:root {
+  /* The brand: the robot's gradient and the navy it sits on (from the logo package). */
+  --brand: linear-gradient(100deg, #315dfb 0%, #8156f7 42%, #bb58e7 76%, #f459b4 100%);
+  /* The same gradient, kept to its blue and violet end so white text on it stays easy to read. */
+  --brand-action: linear-gradient(100deg, #315dfb 0%, #7a55f6 100%);
+  --navy: #0a102a;
+
+  --paper: #0a102a;
+  --surface: #0e1533;
+  --raised: #141c3f;
+  --sunken: rgba(150, 170, 255, 0.06);
+  --hover: rgba(150, 170, 255, 0.07);
+  --active: rgba(150, 170, 255, 0.12);
+  --ink: #eef0fb;
+  --ink-2: #a5acc9;
+  --ink-3: #6f77a0;
+  --line: rgba(150, 170, 255, 0.13);
+  --line-soft: rgba(150, 170, 255, 0.075);
+  --signal: #7391ff;
+  --signal-2: #a984ff;
+  --signal-soft: rgba(115, 145, 255, 0.16);
+  --ok: #3fcf8e;
+  --ok-soft: rgba(63, 207, 142, 0.13);
+  --wait: #f0a941;
+  --wait-soft: rgba(240, 169, 65, 0.13);
+  --bad: #f26d6d;
+  --bad-soft: rgba(242, 109, 109, 0.13);
+  --shadow-pop: 0 0 0 1px rgba(150, 170, 255, 0.14), 0 24px 60px -12px rgba(2, 4, 16, 0.8), 0 8px 20px -8px rgba(2, 4, 16, 0.6);
+  --bubble: #17204a;
+  /* the raised part of a control: the chosen half of a segmented control */
+  --knob: rgba(150, 170, 255, 0.17);
+  --panel-shadow: none;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23a5acc9' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  /* names older components still read */
+  --glass: var(--surface);
+  --glass-strong: var(--raised);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --paper: #f4f5fb;
+  --surface: #ffffff;
+  --raised: #ffffff;
+  --sunken: rgba(10, 16, 42, 0.045);
+  --hover: rgba(10, 16, 42, 0.045);
+  --active: rgba(10, 16, 42, 0.08);
+  --ink: #0a102a;
+  --ink-2: #4b5377;
+  --ink-3: #858ca8;
+  --line: rgba(10, 16, 42, 0.11);
+  --line-soft: rgba(10, 16, 42, 0.065);
+  --signal: #315dfb;
+  --signal-2: #8156f7;
+  --signal-soft: rgba(49, 93, 251, 0.1);
+  --ok: #0e8f62;
+  --ok-soft: rgba(14, 143, 98, 0.11);
+  --wait: #a96a00;
+  --wait-soft: rgba(169, 106, 0, 0.12);
+  --bad: #cf3a36;
+  --bad-soft: rgba(207, 58, 54, 0.1);
+  --shadow-pop: 0 0 0 1px rgba(10, 16, 42, 0.1), 0 24px 60px -12px rgba(10, 16, 42, 0.3), 0 8px 20px -8px rgba(10, 16, 42, 0.2);
+  --bubble: #e8eaf6;
+  --knob: #ffffff;
+  --panel-shadow: 0 1px 2px rgba(10, 16, 42, 0.05);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%234b5377' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-signal: var(--signal);
+  --color-signal-2: var(--signal-2);
+  --color-signal-soft: var(--signal-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-wait: var(--wait);
+  --color-wait-soft: var(--wait-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* 11 / 12 / 13 / 14 / 16 / 20 / 26: UI text sits at 13. */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.75rem;
+  --text-base: 0.8125rem;
+  --text-lg: 0.875rem;
+  --text-xl: 1rem;
+  --text-2xl: 1.25rem;
+  --text-3xl: 1.625rem;
+  --text-4xl: 2rem;
+
+  --shadow-pop: var(--shadow-pop);
+  --shadow-panel: var(--shadow-pop);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    font-feature-settings: 'cv05', 'cv08', 'ss03', 'calt';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background: var(--paper);
+  }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    background: var(--paper);
+    min-height: 100dvh;
+    letter-spacing: -0.003em;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    line-height: 1.25;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+  }
+  button {
+    cursor: default;
+  }
+  select option {
+    background: var(--raised);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--signal) 80%, transparent);
+    outline-offset: 1px;
+    border-radius: 6px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--signal) 32%, transparent);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Names older components still use: plain surfaces now, no blur. */
+  .glass,
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.625rem;
+  }
+  .glass-strong {
+    background: var(--raised);
+    border: 1px solid var(--line);
+  }
+  .lit {
+    color: var(--ink);
+  }
+  .telemetry {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  /* A key cap, for shortcut hints. */
+  .kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    padding: 0 0.28rem;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    background: var(--sunken);
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    line-height: 1;
+  }
+  .label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    letter-spacing: 0.01em;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    height: 1.75rem;
+    padding: 0 0.65rem;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--raised);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    transition:
+      background-color 0.1s,
+      border-color 0.1s;
+  }
+  .btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 9%, var(--raised));
+    border-color: color-mix(in srgb, var(--ink) 22%, transparent);
+  }
+  .btn:active:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 14%, var(--raised));
+  }
+  .btn:disabled {
+    opacity: 0.4;
+  }
+  .btn-primary {
+    background: var(--brand-action);
+    border-color: transparent;
+    color: #fff;
+    font-weight: 600;
+  }
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.1);
+    border-color: transparent;
+  }
+  .btn-danger {
+    color: var(--bad);
+  }
+  .btn-danger:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--bad) 55%, transparent);
+    background: var(--bad-soft);
+  }
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ink-2);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--hover);
+    border-color: transparent;
+    color: var(--ink);
+  }
+  .field {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--sunken);
+    border-radius: 6px;
+    padding: 0.36rem 0.55rem;
+    font-size: 0.8125rem;
+    transition:
+      border-color 0.1s,
+      box-shadow 0.1s;
+  }
+  .field::placeholder {
+    color: var(--ink-3);
+  }
+  .field:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--signal) 75%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 20%, transparent);
+  }
+  /* A select draws its own arrow, so it looks the same in every browser and both themes. */
+  select.field {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 1.7rem;
+    background-image: var(--chevron);
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 0.75rem;
+    text-overflow: ellipsis;
+  }
+  select.field:disabled {
+    opacity: 0.5;
+  }
+  /* One choice out of a few, drawn by us. */
+  .radio {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    border-radius: 999px;
+    border: 1.5px solid color-mix(in srgb, var(--ink-3) 80%, transparent);
+    background: transparent;
+    display: inline-grid;
+    place-content: center;
+    flex-shrink: 0;
+    transition:
+      border-color 0.12s,
+      background-color 0.12s;
+  }
+  .radio::after {
+    content: '';
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: #fff;
+    transform: scale(0);
+    transition: transform 0.14s cubic-bezier(0.3, 0.7, 0.3, 1.3);
+  }
+  .radio:checked {
+    border-color: var(--signal);
+    background: var(--signal);
+  }
+  .radio:checked::after {
+    transform: scale(1);
+  }
+  .radio:hover:not(:checked) {
+    border-color: var(--ink-2);
+  }
+
+  /* ── settings: grouped rows ── */
+  .pane-title {
+    font-size: 1.625rem;
+    font-weight: 650;
+    letter-spacing: -0.022em;
+    line-height: 1.15;
+  }
+  .pane-lede {
+    margin-top: 0.4rem;
+    max-width: 58ch;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+  }
+  .set-panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    box-shadow: var(--panel-shadow);
+    overflow: hidden;
+  }
+  .set-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 1.25rem;
+    row-gap: 0.6rem;
+    min-height: 3.25rem;
+    padding: 0.7rem 1rem;
+    border-top: 1px solid var(--line-soft);
+  }
+  .set-row:first-child {
+    border-top: 0;
+  }
+  .set-row.stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .set-title {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    color: var(--ink);
+  }
+  .set-hint {
+    margin-top: 0.15rem;
+    max-width: 56ch;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: var(--ink-2);
+  }
+  .set-error {
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--bad);
+  }
+  @media (max-width: 30rem) {
+    .set-row:not(.keep) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  dialog {
+    background: var(--raised);
+    border: 0;
+    box-shadow: var(--shadow-pop);
+    color: var(--ink);
+  }
+  dialog::backdrop {
+    background: rgba(4, 5, 8, 0.55);
+  }
+  :root[data-theme='light'] dialog::backdrop {
+    background: rgba(15, 23, 42, 0.25);
+  }
+
+  /* The bar at the top of every view: title on the left, actions on the right. */
+  .viewbar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    height: 2.75rem;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--line-soft);
+    flex-shrink: 0;
+  }
+  .viewbar h1 {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  /* A list row: the unit most screens are made of. */
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-height: 2.25rem;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  a.row:hover,
+  button.row:hover {
+    background: var(--hover);
+  }
+  .row.on {
+    background: var(--active);
+  }
+  .group-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 1.9rem;
+    padding: 0 1rem;
+    background: color-mix(in srgb, var(--surface) 60%, var(--paper));
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    height: 1.25rem;
+    padding: 0 0.42rem;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  /* What an agent wrote. Text keeps a readable line length; tables and code may use the full width. */
+  .prose-run {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .prose-run > * {
+    margin: 0 0 0.7em;
+  }
+  .prose-run > :last-child {
+    margin-bottom: 0;
+  }
+  .prose-run :is(p, ul, ol, blockquote, h3, h4, h5, h6) {
+    max-width: 72ch;
+  }
+  .prose-run :is(ul, ol) {
+    padding-left: 1.25em;
+  }
+  .prose-run ul {
+    list-style: disc;
+  }
+  .prose-run ul ul {
+    list-style: circle;
+  }
+  .prose-run ol {
+    list-style: decimal;
+  }
+  .prose-run li {
+    margin: 0.15em 0;
+  }
+  .prose-run li > :is(ul, ol) {
+    margin: 0.15em 0 0.25em;
+  }
+  .prose-run li > p {
+    margin: 0;
+  }
+  .prose-run li > p + p {
+    margin-top: 0.4em;
+  }
+  .prose-run li::marker {
+    color: var(--ink-3);
+  }
+  .prose-run li.task {
+    list-style: none;
+    margin-left: -1.25em;
+    padding-left: 1.6em;
+    position: relative;
+  }
+  .prose-run .md-box {
+    position: absolute;
+    left: 0;
+    top: 0.3em;
+    width: 0.95em;
+    height: 0.95em;
+    border-radius: 4px;
+    border: 1.5px solid var(--ink-3);
+  }
+  .prose-run .md-box.done {
+    border-color: var(--ok);
+    background: var(--ok)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.2 5 8.6 9.5 3.6'/%3E%3C/svg%3E")
+      center / 100% no-repeat;
+  }
+  .prose-run :is(h3, h4, h5, h6) {
+    font-weight: 620;
+    line-height: 1.3;
+    letter-spacing: -0.006em;
+    margin: 1.15em 0 0.4em;
+  }
+  .prose-run > :is(h3, h4, h5, h6):first-child {
+    margin-top: 0.1em;
+  }
+  .prose-run h3 {
+    font-size: 1.0625rem;
+  }
+  .prose-run h4 {
+    font-size: 0.9375rem;
+  }
+  .prose-run :is(h5, h6) {
+    font-size: 0.875rem;
+  }
+  .prose-run strong {
+    font-weight: 620;
+  }
+  .prose-run em {
+    font-style: italic;
+  }
+  .prose-run s {
+    color: var(--ink-3);
+  }
+  .prose-run a {
+    color: var(--signal);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--signal) 45%, transparent);
+    text-underline-offset: 2.5px;
+  }
+  .prose-run a:hover {
+    text-decoration-color: currentColor;
+  }
+  .prose-run blockquote {
+    border-left: 2px solid var(--line);
+    padding-left: 0.85em;
+    color: var(--ink-2);
+  }
+  .prose-run blockquote > :last-child {
+    margin-bottom: 0;
+  }
+  .prose-run hr {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 1em 0;
+  }
+  .prose-run code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--sunken);
+    padding: 0.08em 0.34em;
+    border-radius: 4px;
+  }
+
+  /* Code blocks and tables share a frame, and a copy button that shows on pointing or by the keys. */
+  .prose-run :is(.md-code, .md-table) {
+    position: relative;
+  }
+  .prose-run :is(.md-code, .md-scroll) {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .prose-run .md-code {
+    overflow: hidden;
+  }
+  /* A small table is as wide as what is in it; one with long text takes the width there is. */
+  .prose-run .md-table {
+    width: fit-content;
+    max-width: 100%;
+  }
+  .prose-run .md-copy {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    height: 1.5rem;
+    padding: 0 0.5rem;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    background: var(--raised);
+    color: var(--ink-2);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .prose-run :is(.md-code, .md-table):hover .md-copy,
+  .prose-run .md-copy:focus-visible {
+    opacity: 1;
+  }
+  .prose-run .md-copy:hover {
+    color: var(--ink);
+  }
+  /* On a table the button sits on the top edge, clear of the headings. */
+  .prose-run .md-table > .md-copy {
+    top: -0.95rem;
+    right: 0.6rem;
+    z-index: 2;
+  }
+  @media (hover: none) {
+    .prose-run .md-copy {
+      display: none;
+    }
+  }
+  .prose-run pre {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    padding: 0.7rem 0.85rem;
+    overflow-x: auto;
+    overflow-wrap: normal;
+  }
+  .prose-run pre code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+  }
+  .prose-run .md-lang {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.75rem;
+    color: var(--ink-3);
+    font-size: 0.6875rem;
+    transition: opacity 0.12s;
+  }
+  @media (hover: hover) {
+    .prose-run .md-code:hover .md-lang {
+      opacity: 0;
+    }
+  }
+
+  .prose-run .md-scroll {
+    overflow-x: auto;
+  }
+  .prose-run .md-scroll:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: -2px;
+  }
+  .prose-run table {
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    overflow-wrap: normal;
+  }
+  .prose-run :is(th, td) {
+    padding: 0.5rem 0.8rem;
+    text-align: left;
+    vertical-align: baseline;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--surface);
+    min-width: 9rem;
+  }
+  /* Once a table scrolls anyway, its long text gets room to be read. */
+  .prose-run .md-scroll.wide :is(th, td):not(.tight) {
+    min-width: 15rem;
+  }
+  .prose-run :is(th, td).tight {
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .prose-run th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--ink-2);
+    background: color-mix(in srgb, var(--ink) 4.5%, var(--surface));
+    border-bottom-color: var(--line);
+  }
+  .prose-run tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .prose-run tbody tr:hover td {
+    background: color-mix(in srgb, var(--ink) 2.5%, var(--surface));
+  }
+  .prose-run td.lead {
+    font-weight: 620;
+  }
+  .prose-run .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .prose-run .al-right {
+    text-align: right;
+  }
+  .prose-run .al-center {
+    text-align: center;
+  }
+  /* In a table that scrolls, the first column stays where it is and the far edge fades while there is more. */
+  .prose-run .md-scroll.pin :is(th, td).tight:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    box-shadow: 1px 0 0 var(--line);
+  }
+  .prose-run .md-table::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 2.5rem;
+    border-radius: 0 7px 7px 0;
+    background: linear-gradient(to right, transparent, var(--surface));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .prose-run .md-table.more::after {
+    opacity: 1;
+  }
+}
+
+/* ── motion: only what carries state ──────────────────────────────────────────────────────── */
+@keyframes breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 50%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 0%, transparent);
+  }
+}
+.dot-working {
+  color: var(--signal);
+  animation: breathe 1.8s ease-in-out infinite;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+/* In prose the mark sits at the end of the last line of text, not under the block. */
+.caret:not(.prose-run)::after,
+.prose-run.caret > :is(p, h3, h4, h5, h6):last-child::after,
+.prose-run.caret > :is(ul, ol):last-child > li:last-child::after {
+  content: '';
+  display: inline-block;
+  width: 0.45em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 1px;
+  background: var(--signal);
+  animation: caret 1s steps(1) infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.working-text {
+  background: linear-gradient(90deg, var(--ink-3) 0%, var(--ink-2) 40%, var(--ink) 50%, var(--ink-2) 60%, var(--ink-3) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.4s linear infinite;
+}
+/* The manager's mark. */
+.orb {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 34% 30%, #fff 0%, var(--signal) 42%, var(--signal-2) 85%);
+  flex-shrink: 0;
+}
+@keyframes orb-pulse {
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 12px 0 color-mix(in srgb, var(--signal) 70%, transparent);
+  }
+}
+.orb-busy {
+  animation: orb-pulse 1.3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot-working,
+  .caret:not(.prose-run)::after,
+  .prose-run.caret > :is(p, h3, h4, h5, h6):last-child::after,
+  .prose-run.caret > :is(ul, ol):last-child > li:last-child::after,
+  .working-text,
+  .orb-busy {
+    animation: none;
+  }
+  .working-text {
+    color: var(--ink-2);
+    background: none;
+  }
+}
+
+/* ── inside the desktop app ───────────────────────────────────────────────────────────────── */
+/* The window has no title bar of its own: the bars at the top of the page are what you drag it by,
+   and the sidebar leaves room for the window buttons. */
+html[data-desktop] body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+html[data-desktop] p,
+html[data-desktop] pre,
+html[data-desktop] article,
+html[data-desktop] input,
+html[data-desktop] textarea,
+html[data-desktop] dd,
+html[data-desktop] [class*='prose'] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+html[data-desktop] .viewbar,
+html[data-desktop] .side-top {
+  -webkit-app-region: drag;
+}
+html[data-desktop] a,
+html[data-desktop] button,
+html[data-desktop] input,
+html[data-desktop] textarea,
+html[data-desktop] select,
+html[data-desktop] summary,
+html[data-desktop] [role='button'] {
+  -webkit-app-region: no-drag;
+}
+html[data-desktop] .side-top {
+  padding-top: 2.4rem;
+}
+/* The quick-ask window is a floating pane with nothing behind it. */
+html.quick,
+html.quick body {
+  background: transparent;
+}
