@@ -97,7 +97,7 @@ const enginesDown = computed(() => (state.health ?? []).filter((h) => !h.loggedI
           <span class="name">Health</span>
         </RouterLink>
 
-        <p v-if="settings" class="telemetry about">Data in {{ settings.paths.home }}<br />HeyBotOS {{ state.me?.version }}</p>
+        <p v-if="settings" class="telemetry about">Data in {{ settings.paths.home }}<br />HeyBotOS {{ state.me?.version }}{{ state.me?.stage ? ` ${state.me.stage}` : '' }}</p>
       </nav>
 
       <div class="min-h-0 flex-1 overflow-y-auto">

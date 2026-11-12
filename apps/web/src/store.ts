@@ -11,7 +11,7 @@ export const state = reactive({
   signedIn: null as boolean | null,
   reachable: true,
   live: false,
-  me: null as { version: string; home: string; maxWorkers: number; managerName: string; welcomed: boolean } | null,
+  me: null as { version: string; stage: string | null; home: string; maxWorkers: number; managerName: string; welcomed: boolean } | null,
   runs: [] as RunView[],
   tasks: [] as TaskView[],
   chat: { messages: [] as ChatMessage[], activeRunId: null as string | null, activeThread: null as string | null, waitingReports: 0, loaded: false },

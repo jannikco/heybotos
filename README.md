@@ -7,6 +7,11 @@
 
 <p align="center"><strong>One manager you talk to. A team of agents that does the work.</strong></p>
 
+> [!WARNING]
+> **HeyBotOS is in beta.** It works and is used every day, but expect rough edges and changes between
+> versions. Its workers edit files and run commands on your Mac without asking first: start with projects
+> that are in git, where every change can be seen and undone, and keep backups of anything you care about.
+
 HeyBotOS is a Mac app that runs a team of coding agents for you. You tell the manager what you want done, in
 any of your projects. It splits the work into tasks, hands them to workers, keeps track, and comes back with
 the result. You see every agent and every step, and you can undo what a worker changed.
@@ -108,10 +113,12 @@ pnpm --filter @heybotos/desktop dist   # builds the Mac app into apps/desktop/di
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the layout of the code and the rules for changing it.
 
-## Status
+## Beta
 
-HeyBotOS is young. It is used every day by the people who build it, on macOS; nothing else is supported yet.
-Expect changes between versions; [CHANGELOG.md](CHANGELOG.md) says what changed.
+This is a beta. It is used every day by the people who build it, on macOS; nothing else is supported yet.
+Things will change between versions, sometimes in ways that need a manual step; [CHANGELOG.md](CHANGELOG.md)
+says what changed. Bug reports and ideas are very welcome in the
+[issues](https://github.com/jannikco/heybotos/issues).
 
 ## Licence
 

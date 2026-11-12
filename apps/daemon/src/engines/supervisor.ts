@@ -659,12 +659,13 @@ export class Supervisor {
 
       a.lastOutputAt = Date.now()
       const events: Array<Omit<StoredEvent, 'id' | 'runId' | 'ts'>> = []
-      const deltas: Array<{ parent: string | null; channel: 'text' | 'thinking'; text: string }> = []
+      // Each live piece remembers how many events came before it, so both go out in the order they arrived.
+      const deltas: Array<{ before: number; parent: string | null; channel: 'text' | 'thinking'; text: string }> = []
       const patch: { sessionId?: string; model?: string; activity?: string } = {}
       for (const line of lines) {
         const p = a.parser(line)
+        for (const d of p.deltas) deltas.push({ before: events.length, ...d })
         events.push(...p.events)
-        deltas.push(...p.deltas)
         Object.assign(patch, p.patch ?? {})
         if (p.fatal && !a.fatal) a.fatal = p.fatal
         if (p.final) {
@@ -695,8 +696,20 @@ export class Supervisor {
           a.id,
         )
       })
-      for (const e of stored) this.bus.emit('event', e)
-      for (const d of deltas) this.bus.emit('delta', { runId: a.id, ...d })
+      // A finished piece of text clears what was being written. Sent out of order, the tail of one answer
+      // would show in front of the next.
+      let next = 0
+      const live = (upTo: number) => {
+        for (; next < deltas.length && deltas[next]!.before <= upTo; next++) {
+          const { before: _before, ...d } = deltas[next]!
+          this.bus.emit('delta', { runId: a.id, ...d })
+        }
+      }
+      stored.forEach((e, i) => {
+        live(i)
+        this.bus.emit('event', e)
+      })
+      live(stored.length)
       if (row.status === 'starting' || patch.activity || patch.sessionId || patch.model) this.publish(a.id)
       if (row.stdout_offset + consumed >= size) return
     }

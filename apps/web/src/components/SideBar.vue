@@ -8,6 +8,7 @@ import { clock, dayLabel } from '../format'
 import { command, hueOf, inboxCount, jobs, managerName, staffById, state } from '../store'
 import AgentFace from './AgentFace.vue'
 import BrandWordmark from './brand/BrandWordmark.vue'
+import StageTag from './brand/StageTag.vue'
 
 const route = useRoute()
 const current = computed(() => (route.name === 'thread' ? String(route.params.thread) : null))
@@ -36,7 +37,10 @@ const faceState = (t: ThreadView) => (t.needsYou ? 'needs' : t.working || (state
 <template>
   <aside class="side border-line-soft flex h-dvh min-h-0 flex-col border-r" aria-label="Conversations">
     <div class="side-top flex items-center gap-2 px-3 pb-2 pt-3">
-      <span class="flex-1 pl-1"><BrandWordmark :height="17" /></span>
+      <span class="flex flex-1 items-center gap-2 pl-1">
+        <BrandWordmark :height="17" />
+        <StageTag />
+      </span>
       <button class="round" aria-label="Find or run anything" title="Find or run anything (⌘K)" @click="command('palette')">
         <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.2" /><path d="m10.2 10.2 3.3 3.3" /></svg>
       </button>

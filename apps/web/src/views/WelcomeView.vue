@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import { api } from '../api'
 import BrandMark from '../components/brand/BrandMark.vue'
 import BrandWordmark from '../components/brand/BrandWordmark.vue'
+import StageTag from '../components/brand/StageTag.vue'
 import UiList from '../components/ui/UiList.vue'
 import { ENGINE_NAME } from '../format'
 import { change, loadSettings, saving, settings } from '../settings'
@@ -67,7 +68,10 @@ async function start(): Promise<void> {
       <header class="flex items-center gap-4">
         <BrandMark :size="72" :state="ready ? 'working' : 'idle'" />
         <div>
-          <BrandWordmark :height="30" />
+          <div class="flex items-center gap-3">
+            <BrandWordmark :height="30" />
+            <StageTag />
+          </div>
           <p class="text-ink-2 mt-2 text-lg">One manager you talk to. A team of agents that does the work.</p>
         </div>
       </header>
@@ -106,6 +110,7 @@ async function start(): Promise<void> {
         <button class="btn btn-primary start" :disabled="starting" @click="start">Meet your team</button>
         <p class="text-ink-3 text-sm">{{ ready ? 'All of this can be changed later in Settings.' : 'You can go on without an engine and look around; workers start once one is ready.' }}</p>
       </footer>
+      <p v-if="state.me?.stage === 'beta'" class="text-ink-3 mt-6 max-w-[62ch] text-sm">HeyBotOS is in beta. Workers edit files and run commands on this Mac without asking first, so start with projects that are in git, where every change can be seen and undone.</p>
     </div>
   </main>
 </template>

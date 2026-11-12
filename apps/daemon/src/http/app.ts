@@ -44,6 +44,8 @@ export interface AppDeps {
   /** Built dashboard; absent in tests and when only the API is wanted. */
   webRoot?: string
   version: string
+  /** "beta" while HeyBotOS is one; absent once it is not. */
+  stage?: string
   /** What the Mac app was built from; absent in a checkout. */
   build?: string | null
 }
@@ -185,7 +187,7 @@ export function createApp(deps: AppDeps): Hono {
 
   const bad = (c: Context, message: string) => c.json({ error: message }, 400)
 
-  app.get('/api/me', (c) => c.json({ ok: true, version: deps.version, build: deps.build ?? null, welcomed: !home.config.welcome || manager.welcomed(), home: home.root, maxWorkers: home.config.maxWorkers, managerName: manager.name() }))
+  app.get('/api/me', (c) => c.json({ ok: true, version: deps.version, stage: deps.stage ?? null, build: deps.build ?? null, welcomed: !home.config.welcome || manager.welcomed(), home: home.root, maxWorkers: home.config.maxWorkers, managerName: manager.name() }))
 
   // For the desktop app: it holds the local secret and trades it for a browser session of its own.
   app.get('/api/login-link', (c) => c.json({ url: auth.loginUrl(c.req.query('next') ?? '') }))

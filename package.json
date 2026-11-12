@@ -2,6 +2,7 @@
   "name": "heybotos",
   "private": true,
   "version": "0.3.0",
+  "stage": "beta",
   "type": "module",
   "packageManager": "pnpm@12.16.1",
   "engines": {

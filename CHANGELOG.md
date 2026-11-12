@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.3.0
+## 0.3.0 (beta)
 
-The first public version.
+The first public version, and a beta: expect rough edges and changes between versions.
 
 - The Mac app carries everything: the service, the dashboard, the prompts and the gate scripts. It sets up
   its own background service and needs no Node installed.

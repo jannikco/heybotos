@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { RunView, StoredEvent } from '@heybotos/protocol'
-import { BASIC, makeWorld, pidAlive, until, variant, type World } from './helpers.ts'
+import { BASIC, FIXTURES, makeWorld, pidAlive, until, variant, type World } from './helpers.ts'
 
 let w: World
 beforeEach(() => {
@@ -15,6 +15,27 @@ const pidOf = (id: string) => w.db.get<{ pid: number }>('select pid from runs wh
 const kinds = (id: string) => w.sup.events(id).map((e) => e.kind)
 
 describe('a normal run', () => {
+  it('sends text as it is written and the finished text in the order they came, however fast the CLI writes', async () => {
+    // The whole recording arrives at once here, which is when the two used to get out of step.
+    const seen: string[] = []
+    let typing = ''
+    w.bus.on('delta', (d) => {
+      if (d.channel === 'text' && d.parent === null) typing += d.text
+    })
+    w.bus.on('event', (e) => {
+      if (e.kind !== 'text' || e.parent !== null) return
+      // What a page shows while the text is written must be exactly the text that then arrives whole.
+      seen.push(typing === String(e.data.text) ? 'in step' : `out of step: typed "${typing.slice(0, 40)}" for "${String(e.data.text).slice(0, 40)}"`)
+      typing = ''
+    })
+    w.sup.start()
+    const run = w.sup.create({ engine: 'claude', cwd: w.root, prompt: 'Fix it', extra: { env: { FAKE_FIXTURE: join(FIXTURES, 'claude-rich.jsonl'), FAKE_DELAY_MS: '0' } } })
+    await until(() => status(run.id) === 'done', 8000, 'run to finish')
+    expect(seen.length).toBeGreaterThan(1)
+    expect(seen.filter((x) => x !== 'in step')).toEqual([])
+    expect(typing).toBe('')
+  })
+
   it('turns the CLI stream into events and a finished run', async () => {
     w.sup.start()
     const run = w.sup.create({ engine: 'claude', cwd: w.root, prompt: 'Read the note', extra: w.fake() })

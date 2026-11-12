@@ -29,7 +29,7 @@ import { createApp } from './http/app.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repo = join(here, '..', '..', '..')
-const version = (JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')) as { version: string }).version
+const { version, stage } = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')) as { version: string; stage?: string }
 // The Mac app carries a note of what it was built from; after an update that is how it tells an old service from a new one.
 const build = existsSync(join(repo, 'BUILD')) ? readFileSync(join(repo, 'BUILD'), 'utf8').trim() : null
 
@@ -60,7 +60,7 @@ const presence = { desktop: 0 }
 watchInbox(home, bus, undefined, presence)
 const auth = new Auth(home, db, home.config.port)
 const webRoot = join(repo, 'apps', 'web', 'dist')
-const app = createApp({ home, bus, supervisor, registry, tasks, approvals, manager, router, routines, connectors, gateway, staff, settings, threads: new Threads(db, registry), presence, auth, version, build, webRoot: existsSync(join(webRoot, 'index.html')) ? webRoot : undefined })
+const app = createApp({ home, bus, supervisor, registry, tasks, approvals, manager, router, routines, connectors, gateway, staff, settings, threads: new Threads(db, registry), presence, auth, version, stage, build, webRoot: existsSync(join(webRoot, 'index.html')) ? webRoot : undefined })
 
 supervisor.start()
 tasks.reconcile()
@@ -73,7 +73,7 @@ void registry
   .catch((e) => console.error('[registry] scan failed:', e))
 
 const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: home.config.port }, () => {
-  console.log(`HeyBotOS ${version} is running.`)
+  console.log(`HeyBotOS ${version}${stage ? ` ${stage}` : ''} is running.`)
   console.log(`  Data folder   ${home.root}`)
   console.log(`  Workers       ${supervisor.activeCount()} picked up from before, up to ${home.config.maxWorkers} at a time`)
   console.log(`  Open it       ${auth.loginUrl()}`)

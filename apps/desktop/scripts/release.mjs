@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 
 const desktop = join(dirname(fileURLToPath(import.meta.url)), '..')
 const repo = join(desktop, '..', '..')
-const version = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).version
+const { version, stage } = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8'))
 const identity = process.env.HEYBOTOS_SIGN_IDENTITY
 const notary = process.env.HEYBOTOS_NOTARY_PROFILE
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', cwd: repo, ...opts })
@@ -70,7 +70,7 @@ const cask = `cask "heybotos" do
 
   livecheck do
     url :url
-    strategy :github_latest
+    strategy :github_releases
   end
 
   depends_on macos: :monterey
@@ -89,7 +89,11 @@ const cask = `cask "heybotos" do
   ]
 
   caveats <<~EOS
-    HeyBotOS runs the official coding CLIs with your own subscriptions. Install and
+${stage === 'beta' ? `    HeyBotOS is in beta: expect rough edges and changes between versions. Its
+    workers edit files and run commands without asking first, so start with
+    projects that are in git.
+
+` : ''}    HeyBotOS runs the official coding CLIs with your own subscriptions. Install and
     sign in to at least one of: claude, codex, grok.
 ${
   notarised
@@ -114,6 +118,6 @@ console.log(`Version ${version}, ${identity ? (notarised ? 'signed and notarised
   ${caskFile}
 
 To publish:
-  gh release create v${version} apps/desktop/dist/HeyBotOS-${version}-arm64.zip apps/desktop/dist/HeyBotOS-${version}-x64.zip --title "HeyBotOS ${version}" --notes-file CHANGELOG.md
+  gh release create v${version} apps/desktop/dist/HeyBotOS-${version}-arm64.zip apps/desktop/dist/HeyBotOS-${version}-x64.zip --title "HeyBotOS ${version}${stage ? ` (${stage})` : ''}"${stage ? ' --prerelease' : ''} --notes-file CHANGELOG.md
   then copy apps/desktop/dist/heybotos.rb to Casks/heybotos.rb in the tap repository and push it.`)
 if (!existsSync(join(repo, 'LICENSE'))) console.warn('Note: there is no LICENSE file in the repository.')

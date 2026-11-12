@@ -19,7 +19,7 @@ const require = createRequire(import.meta.url)
 const arch = process.argv.includes('--arch') ? process.argv[process.argv.indexOf('--arch') + 1] : process.arch
 if (arch !== 'arm64' && arch !== 'x64') throw new Error('--arch is arm64 or x64.')
 
-const version = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).version
+const { version, stage } = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8'))
 const electronDir = dirname(require.resolve('electron/package.json'))
 const electronVersion = JSON.parse(readFileSync(join(electronDir, 'package.json'), 'utf8')).version
 
@@ -69,7 +69,7 @@ cpSync(join(desktop, 'build', 'icon.icns'), join(resources, 'HeyBotOS.icns'))
 const inside = join(resources, 'heybotos')
 const copy = (...parts) => cpSync(join(repo, ...parts), join(inside, ...parts), { recursive: true })
 mkdirSync(inside, { recursive: true })
-writeFileSync(join(inside, 'package.json'), JSON.stringify({ name: 'heybotos', version, type: 'module', private: true }, null, 2))
+writeFileSync(join(inside, 'package.json'), JSON.stringify({ name: 'heybotos', version, ...(stage ? { stage } : {}), type: 'module', private: true }, null, 2))
 copy('prompts')
 copy('apps', 'daemon', 'src')
 copy('apps', 'daemon', 'hooks')
