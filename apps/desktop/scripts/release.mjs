@@ -68,9 +68,20 @@ const cask = `cask "heybotos" do
   desc "Manager agent and a team of worker agents on your own coding CLI subscriptions"
   homepage "https://github.com/jannikco/heybotos"
 
+  # While HeyBotOS is in beta its releases are pre-releases, which the usual check skips.
   livecheck do
     url :url
-    strategy :github_releases
+    regex(/^v?(\\d+(?:\\.\\d+)+)$/i)
+    strategy :github_releases do |json, regex|
+      json.map do |release|
+        next if release["draft"]
+
+        match = release["tag_name"]&.match(regex)
+        next if match.blank?
+
+        match[1]
+      end
+    end
   end
 
   depends_on macos: :monterey
