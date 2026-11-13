@@ -14,6 +14,16 @@ import { fileURLToPath } from 'node:url'
 export const desktop = join(dirname(fileURLToPath(import.meta.url)), '..')
 export const repo = join(desktop, '..', '..')
 const require = createRequire(import.meta.url)
+
+/** The value after a flag on the command line, or undefined. */
+export const flag = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined)
+/**
+ * Where the finished packages go: dist/, or the folder given with --out. And the version they carry:
+ * the project's, or the one given with --as. Both are for trying out an update: a second build that
+ * calls itself newer, kept apart from the packages that are published.
+ */
+export const OUT = flag('--out') ?? join(desktop, 'dist')
+const VERSION_AS = flag('--as')
 const electronDir = dirname(require.resolve('electron/package.json'))
 const electronVersion = JSON.parse(readFileSync(join(electronDir, 'package.json'), 'utf8')).version
 
@@ -65,7 +75,9 @@ export async function tool(url, sha256) {
  * from <resources>/heybotos: the `heybotos` command for the terminal starts it from there.
  */
 export function fillResources(resources, { arch, program }) {
-  const { version, stage } = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8'))
+  const project = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8'))
+  const version = VERSION_AS ?? project.version
+  const stage = project.stage
   if (!existsSync(join(repo, 'apps', 'web', 'dist', 'index.html'))) throw new Error('Build the dashboard first: pnpm build')
   // The service may only ever use the shared types as types: nothing of that package is shipped.
   for (const f of readdirSync(join(repo, 'apps', 'daemon', 'src'), { recursive: true })) {

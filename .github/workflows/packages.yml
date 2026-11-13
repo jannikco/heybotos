@@ -1,7 +1,7 @@
 name: Packages
 
-# Builds the Linux and Windows apps, runs the service's tests on the app's own runtime, and starts
-# each app to see that it works. Called by the check (to verify) and by a release (to publish).
+# Builds the Linux and Windows apps, runs the service's tests on the app's own runtime, starts each
+# app to see that it works, and has it update itself to a second build. Called by the check (to verify) and by a release (to publish).
 on:
   workflow_call:
     inputs:
@@ -55,7 +55,14 @@ jobs:
       - name: Start the app and check it (Linux)
         if: matrix.system == 'linux'
         run: xvfb-run -a node apps/desktop/scripts/smoke-app.mjs --app apps/desktop/dist/linux-${{ matrix.arch }}/HeyBotOS
-      - name: Install with the installer, start the app and check it, uninstall (Windows)
+      - name: Offer the installed app a newer build and let it update itself (Linux)
+        if: matrix.system == 'linux'
+        run: |
+          mkdir -p "$RUNNER_TEMP/installed"
+          cp -a apps/desktop/dist/linux-${{ matrix.arch }}/HeyBotOS "$RUNNER_TEMP/installed/HeyBotOS"
+          node apps/desktop/scripts/make-linux.mjs --arch ${{ matrix.arch }} --only tar --as 99.0.0 --out "$RUNNER_TEMP/next"
+          xvfb-run -a node apps/desktop/scripts/smoke-update.mjs --app "$RUNNER_TEMP/installed/HeyBotOS" --package "$RUNNER_TEMP/next/HeyBotOS-99.0.0-linux-${{ matrix.arch }}.tar.gz" --version 99.0.0
+      - name: Install with the installer, start the app and check it, let it update itself, uninstall (Windows)
         if: matrix.system == 'win'
         shell: pwsh
         run: |
@@ -64,6 +71,11 @@ jobs:
           Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait
           if (-not (Test-Path "$where\HeyBotOS.exe")) { throw "The installer did not put HeyBotOS in $where" }
           node apps/desktop/scripts/smoke-app.mjs --app "$where"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # A second build that calls itself newer, offered to the installed app as an update.
+          node apps/desktop/scripts/make-win.mjs --arch ${{ matrix.arch }} --only setup --as 99.0.0 --out "$env:RUNNER_TEMP\next"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node apps/desktop/scripts/smoke-update.mjs --app "$where" --package "$env:RUNNER_TEMP\next\HeyBotOS-99.0.0-win-${{ matrix.arch }}-setup.exe" --version 99.0.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Start-Process -FilePath "$where\Uninstall HeyBotOS.exe" -ArgumentList '/S', "_?=$where" -Wait
           if (Test-Path "$where\HeyBotOS.exe") { throw "The uninstaller left HeyBotOS.exe behind" }

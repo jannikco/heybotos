@@ -459,9 +459,31 @@ export interface ConnectorView {
   checkedAt: number | null
 }
 
+/** Where this copy of HeyBotOS stands with regard to a newer version. */
+export interface UpdateState {
+  /** The version that is running. */
+  current: string
+  /** The newest version, when it is newer than this one. */
+  latest: { version: string; notes: string; published: string | null; page: string } | null
+  checkedAt: number | null
+  /** idle = up to date as far as is known; ready = fetched, checked and waiting to be installed. */
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'failed'
+  /** How far the download is, from 0 to 1. */
+  progress: number | null
+  problem: string | null
+  /** app = the desktop app replaces itself; package = the system's package manager has to; source = it runs from the source code. */
+  how: 'app' | 'package' | 'source'
+  /** What to do when the app cannot do it itself, in a sentence. */
+  hint: string | null
+  /** The fetched file, once it is ready. */
+  file: string | null
+  /** Whether HeyBotOS looks for updates by itself. */
+  auto: boolean
+}
+
 /** Everything the owner can change about how HeyBotOS runs, in one object. */
 export interface SettingsView {
-  general: { maxWorkers: number; notifications: boolean; projectRoots: string[] }
+  general: { maxWorkers: number; notifications: boolean; projectRoots: string[]; autoUpdate: boolean }
   manager: { name: string; model: string; effort: string; batchSeconds: number }
   engines: Record<Engine, { model: string; effort: string }>
   routing: { mode: 'balanced' | 'rules'; pool: Engine[]; byKind: Record<TaskKind, Engine>; fallback: boolean; headroom: Record<Engine, number> }

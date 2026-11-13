@@ -4,7 +4,7 @@
 // waiting. The installed app carries the service and sets it up as a background item of its own, so
 // it keeps running without this window.
 import { app, BrowserWindow, Menu, Notification, Tray, dialog, globalShortcut, ipcMain, nativeImage, shell } from 'electron'
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -80,6 +80,112 @@ async function ensureService() {
   serviceProblem = 'From the source code, the service is set up once with: pnpm build && pnpm heybotos install'
   return false
 }
+
+// ── updates ─────────────────────────────────────────────────────────────────────────────────
+// The service finds a newer version, fetches it and checks that it is the one the project published.
+// Replacing the app is done here, by a small script that outlives this process: it waits for the app
+// to close, puts the new one in its place and opens it again. The new app then restarts the
+// service, as after any update.
+
+/** The installed app as a whole: the bundle on the Mac, its folder elsewhere. */
+const APP_PATH = MAC ? join(process.resourcesPath ?? '', '..', '..') : dirname(process.execPath)
+let installing = false
+
+const INSTALLERS = {
+  // $1 the app, $2 the zip, $3 the process to wait for
+  darwin: `#!/bin/sh
+app="$1"; zip="$2"; pid="$3"; work="$(dirname "$zip")/work"
+exec >>"$(dirname "$zip")/install.log" 2>&1
+echo "$(date): installing $zip over $app"
+back() { echo "$1"; [ -n "$HEYBOTOS_UPDATE_NO_OPEN" ] || /usr/bin/open "$app"; exit 1; }
+i=0; while kill -0 "$pid" 2>/dev/null && [ $i -lt 150 ]; do sleep 0.2; i=$((i+1)); done
+rm -rf "$work"; mkdir -p "$work" || back "could not make a work folder"
+/usr/bin/ditto -x -k "$zip" "$work" || back "could not unpack the new version"
+[ -x "$work/HeyBotOS.app/Contents/MacOS/HeyBotOS" ] || back "the download is not the HeyBotOS app"
+rm -rf "$app.old"
+mv "$app" "$app.old" || back "could not move the old version aside"
+if mv "$work/HeyBotOS.app" "$app"; then rm -rf "$app.old"; else mv "$app.old" "$app"; back "could not put the new version in place"; fi
+rm -rf "$work" "$zip"
+echo "$(date): done"
+[ -n "$HEYBOTOS_UPDATE_NO_OPEN" ] || /usr/bin/open "$app"
+`,
+  // $1 the app's folder, $2 the .tar.gz, $3 the process to wait for
+  linux: `#!/bin/sh
+app="$1"; tgz="$2"; pid="$3"; work="$(dirname "$tgz")/work"
+exec >>"$(dirname "$tgz")/install.log" 2>&1
+echo "$(date): installing $tgz over $app"
+again() { [ -n "$HEYBOTOS_UPDATE_NO_OPEN" ] || (nohup "$app/heybotos-desktop" >/dev/null 2>&1 &); }
+back() { echo "$1"; again; exit 1; }
+i=0; while kill -0 "$pid" 2>/dev/null && [ $i -lt 150 ]; do sleep 0.2; i=$((i+1)); done
+rm -rf "$work"; mkdir -p "$work" || back "could not make a work folder"
+tar -xzf "$tgz" -C "$work" || back "could not unpack the new version"
+[ -x "$work/HeyBotOS/heybotos" ] || back "the download is not the HeyBotOS app"
+rm -rf "$app.old"
+mv "$app" "$app.old" || back "could not move the old version aside"
+if mv "$work/HeyBotOS" "$app"; then rm -rf "$app.old"; else mv "$app.old" "$app"; back "could not put the new version in place"; fi
+rm -rf "$work" "$tgz"
+echo "$(date): done"
+again
+`,
+  // %1 the installer, %2 the app's program, %3 the process to wait for. The installer itself stops
+  // whatever of HeyBotOS still runs, and installs where the app already is.
+  win32: `@echo off\r
+setlocal\r
+set n=0\r
+:wait\r
+tasklist /FI "PID eq %~3" 2>nul | find "%~3" >nul\r
+if errorlevel 1 goto go\r
+set /a n+=1\r
+if %n% GEQ 30 goto go\r
+ping -n 2 127.0.0.1 >nul\r
+goto wait\r
+:go\r
+echo %date% %time%: installing %~1 >> "%~dp0install.log"\r
+start "" /wait "%~1" /S\r
+echo %date% %time%: done >> "%~dp0install.log"\r
+if not defined HEYBOTOS_UPDATE_NO_OPEN start "" "%~2"\r
+`,
+}
+
+/** Start the script that replaces this app with the fetched file once this process has ended. */
+function startInstaller(file) {
+  const text = INSTALLERS[process.platform]
+  if (!text) throw new Error('HeyBotOS cannot update itself on this system.')
+  const script = join(dirname(file), WIN ? 'install-update.cmd' : 'install-update.sh')
+  writeFileSync(script, text, { mode: 0o755 })
+  const args = WIN ? ['/d', '/c', script, file, process.execPath, String(process.pid)] : [script, APP_PATH, file, String(process.pid)]
+  // Cut loose from this process, so closing the app does not take the script with it.
+  spawn(WIN ? process.env.ComSpec || 'cmd.exe' : '/bin/sh', args, { detached: true, stdio: 'ignore', windowsHide: true, cwd: dirname(file) }).unref()
+}
+
+/**
+ * Fetch the newer version if that has not been done, hand it to the installer script and close.
+ * Answers with what went wrong when it could not get that far.
+ */
+async function installUpdate() {
+  if (installing) return { ok: true }
+  installing = true
+  try {
+    if (!CARRIES_SERVICE) throw new Error('This copy runs from the source code. Update it with "git pull".')
+    if (!(await ensureService())) throw new Error('The HeyBotOS service is not running, so the new version cannot be fetched.')
+    let s = await (await api('/api/update')).json()
+    if (!s.latest) s = await (await api('/api/update/check', { method: 'POST' })).json()
+    if (!s.latest) throw new Error(s.problem || 'This is the newest version.')
+    if (s.how !== 'app') throw new Error(s.hint || 'This copy of HeyBotOS cannot replace itself.')
+    if (s.status !== 'ready') s = await (await api('/api/update/download', { method: 'POST' })).json()
+    if (s.status !== 'ready' || !s.file) throw new Error(s.problem || 'The new version could not be fetched.')
+    startInstaller(s.file)
+    console.log(`[heybotos] installing ${s.latest.version}`)
+    quitting = true
+    setTimeout(() => app.quit(), 400)
+    return { ok: true }
+  } catch (e) {
+    installing = false
+    console.error('[heybotos] update not installed:', e?.message ?? e)
+    return { ok: false, problem: String(e?.message ?? e) }
+  }
+}
+ipcMain.handle('install-update', () => installUpdate())
 
 // ── windows ─────────────────────────────────────────────────────────────────────────────────
 
@@ -236,7 +342,7 @@ ipcMain.handle('pick-folder', async (e) => {
 
 // ── what is going on: one stream from the service feeds the menu bar, the Dock and notifications ──
 
-const world = { runs: new Map(), tasks: new Map(), approvals: new Map(), name: 'Manager', connected: false }
+const world = { runs: new Map(), tasks: new Map(), approvals: new Map(), name: 'Manager', connected: false, update: null, toldAbout: '' }
 const working = () => [...world.runs.values()].filter((r) => r.role !== 'manager' && ['starting', 'running', 'stopping'].includes(r.status))
 const waitingForOwner = () => {
   const withRequest = new Set([...world.approvals.values()].map((a) => a.taskId))
@@ -263,6 +369,7 @@ function refresh() {
     Menu.buildFromTemplate([
       { label: 'Open HeyBotOS', click: () => go('/') },
       { label: `Ask ${world.name}…`, accelerator: SHORTCUT, click: toggleQuick },
+      ...(world.update?.latest ? [{ label: `Version ${world.update.latest.version} is available…`, click: () => go('/settings/general') }] : []),
       { type: 'separator' },
       ...(waiting ? [{ label: `${waiting} waiting for you`, click: () => go('/inbox') }, { type: 'separator' }] : []),
       { label: w.length ? 'Working now' : 'Nobody is working', enabled: false },
@@ -293,6 +400,13 @@ function onFrame(event, data) {
     } else world.approvals.delete(data.id)
   } else if (event === 'identity') {
     world.name = data.managerName
+  } else if (event === 'update') {
+    world.update = data
+    // Said once per version, not at every check.
+    if (data.latest && data.status === 'available' && world.toldAbout !== data.latest.version) {
+      world.toldAbout = data.latest.version
+      notify('HeyBotOS', `Version ${data.latest.version} is available.`, '/settings/general')
+    }
   } else if (event === 'chat') {
     // The answer arrived while you were looking at something else.
     if (data.message?.role === 'manager' && !(win?.isFocused() ?? false)) notify(world.name, data.message.text, '/')
@@ -305,6 +419,7 @@ async function listen() {
     try {
       ;({ base, secret } = service())
       world.name = (await (await api('/api/me')).json()).managerName ?? 'Manager'
+      world.update = await (await api('/api/update')).json().catch(() => null)
       // "client=desktop" tells the service this app shows notifications, so it does not show its own.
       const res = await api('/api/stream?client=desktop')
       if (!res.ok || !res.body) throw new Error('no stream')
@@ -382,7 +497,8 @@ if (process.argv.includes('--service')) {
   })
 } else if (!app.requestSingleInstanceLock()) app.quit()
 else {
-  app.on('second-instance', () => go('/'))
+  // A second start brings the window forward; started with --install-update, it asks this one to update.
+  app.on('second-instance', (_e, argv) => (argv.includes('--install-update') ? void installUpdate() : go('/')))
   app.on('before-quit', () => (quitting = true))
   app.on('activate', () => go('/'))
   app.on('window-all-closed', () => {})
@@ -400,5 +516,6 @@ else {
     refresh()
     globalShortcut.register(SHORTCUT, toggleQuick)
     void listen()
+    if (process.argv.includes('--install-update')) void installUpdate()
   })
 }

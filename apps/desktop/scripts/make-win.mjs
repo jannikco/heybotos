@@ -1,6 +1,6 @@
 // Builds HeyBotOS for Windows, on Windows: the app as a folder, and from it a .zip and an installer.
 //
-//   node scripts/make-win.mjs [--arch x64|arm64]
+//   node scripts/make-win.mjs [--arch x64|arm64] [--only setup] [--as <version> --out <folder>]
 //
 // The installer needs NSIS (makensis); without it only the .zip is made. Nothing is uploaded, and
 // nothing is signed: Windows will say the publisher is unknown the first time the installer runs.
@@ -11,7 +11,7 @@
 import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { desktop, electronDist, fillResources, tool } from './payload.mjs'
+import { desktop, electronDist, fillResources, flag, OUT, tool } from './payload.mjs'
 
 if (process.platform !== 'win32') throw new Error('The Windows packages are built on Windows (the GitHub release workflow does it).')
 const arch = process.argv.includes('--arch') ? process.argv[process.argv.indexOf('--arch') + 1] : process.arch
@@ -21,7 +21,7 @@ const RCEDIT = ['https://github.com/electron/rcedit/releases/download/v2.0.0/rce
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...opts })
 
 // ── the app as a folder ──
-const work = join(desktop, 'dist', `win-${arch}`)
+const work = join(OUT, `win-${arch}`)
 const app = join(work, 'HeyBotOS')
 rmSync(work, { recursive: true, force: true })
 mkdirSync(work, { recursive: true })
@@ -43,8 +43,8 @@ run(await tool(...RCEDIT), [
 const made = []
 
 // ── .zip ──
-{
-  const out = join(desktop, 'dist', `HeyBotOS-${version}-win-${arch}.zip`)
+if (flag('--only') !== 'setup') {
+  const out = join(OUT, `HeyBotOS-${version}-win-${arch}.zip`)
   rmSync(out, { force: true })
   // The tar that comes with Windows writes zip files too.
   run('tar', ['-a', '-c', '-f', out, '-C', work, 'HeyBotOS'])
@@ -61,7 +61,7 @@ const makensis = ['makensis', join(process.env['ProgramFiles(x86)'] ?? 'C:\\Prog
   }
 })
 if (makensis) {
-  const out = join(desktop, 'dist', `HeyBotOS-${version}-win-${arch}-setup.exe`)
+  const out = join(OUT, `HeyBotOS-${version}-win-${arch}-setup.exe`)
   rmSync(out, { force: true })
   const kb = Math.round(Number(execFileSync('powershell', ['-NoProfile', '-Command', `(Get-ChildItem -Recurse -File '${app}' | Measure-Object -Sum Length).Sum`], { encoding: 'utf8' }).trim()) / 1024)
   const RUN_KEY = 'Software\\Microsoft\\Windows\\CurrentVersion\\Run'

@@ -1,6 +1,6 @@
 // One small reactive store. The overview stream keeps the run list and activity strips current.
 import { computed, reactive } from 'vue'
-import type { ApprovalView, ChatMessage, Engine, EngineModels, ChatState, EngineHealth, ProjectView, RunStatus, RunView, StaffView, TaskView, ThreadView } from '@heybotos/protocol'
+import type { ApprovalView, ChatMessage, ChatState, Engine, EngineHealth, EngineModels, ProjectView, RunStatus, RunView, StaffView, TaskView, ThreadView, UpdateState } from '@heybotos/protocol'
 import { api } from './api'
 
 export type TickKind = 'tool' | 'handoff' | 'say' | 'error'
@@ -25,6 +25,8 @@ export const state = reactive({
   projectsLoaded: false,
   pulse: {} as Record<string, Tick[]>,
   health: null as EngineHealth[] | null,
+  /** Whether there is a newer version, and how far fetching it is. */
+  update: null as UpdateState | null,
   command: { name: '', n: 0 },
   models: null as Record<Engine, EngineModels> | null,
   now: Date.now(),
@@ -215,6 +217,9 @@ function connect(): void {
     state.approvals = state.approvals.filter((x) => x.id !== a.id)
     if (a.status === 'pending') state.approvals.unshift(a)
   })
+  source.addEventListener('update', (e) => {
+    state.update = JSON.parse((e as MessageEvent).data) as UpdateState
+  })
   source.addEventListener('identity', (e) => {
     if (state.me) state.me.managerName = (JSON.parse((e as MessageEvent).data) as { managerName: string }).managerName
   })
@@ -254,6 +259,9 @@ export async function boot(): Promise<void> {
     void loadChat().catch(() => {})
     void loadThreads().catch(() => {})
     void loadStaff().catch(() => {})
+    void api<UpdateState>('/api/update')
+      .then((u) => (state.update = u))
+      .catch(() => {})
   } catch {
     /* api() has already recorded why */
   }

@@ -56,3 +56,22 @@ reads just as well for people.
 - Write interface text in plain words from the user's side, in sentence case. Colours carry meaning only:
   blue working, amber needs you, green done, red failed.
 - By contributing you agree that your contribution is licensed under the MIT licence of this project.
+
+## Making a release
+
+One command, on a Mac, from a clean `main`:
+
+```sh
+pnpm release patch        # or minor, major, or a version such as 0.5.0; add --dry to only look
+```
+
+Write what changed under a `## Not released yet` heading at the top of `CHANGELOG.md` first: that text
+becomes the release notes and what installed apps show as "what is new". The command sets the version,
+runs the checks, pushes, waits for GitHub, builds the Mac app, creates the release, has GitHub build the
+Linux and Windows packages into it, then signs and pushes `updates/latest.json` (the moment installed apps
+start offering the version) and updates the Homebrew cask. If a step fails, fix the cause and run the same
+command again: it carries on where it stopped.
+
+It needs the key that signs updates, which only the maintainers have and which is never in the repository.
+A fork that publishes its own versions makes its own key and changes `UPDATES_URL` and `UPDATES_KEY` in
+`apps/daemon/src/updates.ts`.

@@ -307,3 +307,45 @@ test('team: add a member whose face shows as you type, and take one off duty', a
   await members.getByRole('link', { name: 'Nova, Designer' }).click()
   await expect(page.getByRole('heading', { name: 'Nova', level: 1 })).toBeVisible()
 })
+
+test('a newer version: said in the sidebar, shown with what is new, and installed from the app', async ({ page }) => {
+  // The demo runs from the source code, which never updates itself; this is what an installed app answers.
+  const latest = { version: '9.9.0', notes: '- **A new thing.** It does more.\n- A fix.', published: '2026-01-02T03:04:05Z', page: 'https://example.org/releases/9.9.0' }
+  const answer = { current: '0.4.0', latest: null as typeof latest | null, checkedAt: Date.now(), status: 'idle', progress: null, problem: null, how: 'app', hint: null, file: null, auto: true }
+  await page.route('**/api/update', (r) => r.fulfill({ json: answer }))
+  await page.route('**/api/update/check', (r) => {
+    Object.assign(answer, { latest, status: 'available' })
+    return r.fulfill({ json: answer })
+  })
+  // Inside the desktop app the page can ask the app to install; note that it was asked.
+  await page.addInitScript(() => {
+    const w = window as unknown as { asked: number; heybotosDesktop: unknown }
+    w.asked = 0
+    w.heybotosDesktop = { onNavigate() {}, onCommand() {}, quickDone() {}, quickCancel() {}, installUpdate: async () => (w.asked++, { ok: true }) }
+  })
+  await signIn(page, '/settings/general')
+  const panel = page.getByRole('region', { name: 'Version' })
+  await expect(panel).toContainText('This is the newest version.')
+  await expect(sidebar(page).getByRole('link', { name: 'Update' })).toHaveCount(0)
+
+  await panel.getByRole('button', { name: 'Look now' }).click()
+  await expect(panel).toContainText('Version 9.9.0 is available')
+  await expect(panel).toContainText('You have')
+  await panel.getByText('What is new in 9.9.0').click()
+  await expect(panel.getByRole('listitem').filter({ hasText: 'A new thing. It does more.' })).toBeVisible()
+  await expect(panel).not.toContainText('**')
+
+  await panel.getByRole('button', { name: 'Update and restart' }).click()
+  await expect(panel.getByRole('status')).toContainText('HeyBotOS closes, replaces itself and opens again')
+  expect(await page.evaluate(() => (window as unknown as { asked: number }).asked)).toBe(1)
+
+  // Looking by itself can be switched off, and that is kept.
+  const auto = panel.getByRole('switch', { name: 'Look for updates' })
+  await expect(auto).toBeChecked()
+  await auto.click()
+  await expect(auto).not.toBeChecked()
+  await page.reload()
+  await expect(page.getByRole('region', { name: 'Version' }).getByRole('switch', { name: 'Look for updates' })).not.toBeChecked()
+  // After the reload the newer version is known at once (the service remembers it), and the sidebar says so.
+  await expect(sidebar(page).getByRole('link', { name: 'Update' })).toBeVisible()
+})
