@@ -2,14 +2,14 @@
 //
 //   node scripts/make-win.mjs [--arch x64|arm64] [--only setup] [--as <version> --out <folder>]
 //
-// The installer needs NSIS (makensis); without it only the .zip is made. Nothing is uploaded, and
+// The installer is made with NSIS (makensis): the one installed here, or one this script fetches. Nothing is uploaded, and
 // nothing is signed: Windows will say the publisher is unknown the first time the installer runs.
 //
 // The installer puts the app in the owner's own programs folder, so it asks for no administrator
 // rights. The app carries the service, as on the Mac: it starts it, and has Windows start it at
 // sign-in, the first time it opens.
 import { execFileSync } from 'node:child_process'
-import { cpSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { desktop, electronDist, fillResources, flag, OUT, tool } from './payload.mjs'
 
@@ -52,14 +52,31 @@ if (flag('--only') !== 'setup') {
 }
 
 // ── installer ──
-const makensis = ['makensis', join(process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)', 'NSIS', 'makensis.exe'), join(process.env.ProgramFiles ?? 'C:\\Program Files', 'NSIS', 'makensis.exe')].find((bin) => {
+// NSIS, which makes the installer: the one on this computer if there is one, otherwise a fixed
+// release, fetched once and checked against its checksum.
+const NSIS = ['https://downloads.sourceforge.net/project/nsis/NSIS%203/3.10/nsis-3.10.zip', 'fcdce3229717a2a148e7cda0ab5bdb667f39d8fb33ede1da8dabc336bd5ad110']
+const works = (bin) => {
   try {
     execFileSync(bin, ['/VERSION'], { stdio: 'ignore' })
     return true
   } catch {
     return false
   }
-})
+}
+let makensis = ['makensis', join(process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)', 'NSIS', 'makensis.exe'), join(process.env.ProgramFiles ?? 'C:\\Program Files', 'NSIS', 'makensis.exe')].find(works)
+if (!makensis && !process.argv.includes('--no-installer')) {
+  try {
+    const zip = await tool(...NSIS)
+    const into = join(desktop, 'dist', 'tools', 'nsis')
+    if (!existsSync(join(into, 'nsis-3.10', 'makensis.exe'))) {
+      mkdirSync(into, { recursive: true })
+      run('tar', ['-xf', zip, '-C', into])
+    }
+    if (works(join(into, 'nsis-3.10', 'makensis.exe'))) makensis = join(into, 'nsis-3.10', 'makensis.exe')
+  } catch (e) {
+    console.log(`NSIS could not be fetched: ${e.message}`)
+  }
+}
 if (makensis) {
   const out = join(OUT, `HeyBotOS-${version}-win-${arch}-setup.exe`)
   rmSync(out, { force: true })
@@ -153,6 +170,6 @@ SectionEnd
   )
   run(makensis, ['/V2', nsi])
   made.push(out)
-} else console.log('No NSIS here (makensis): the installer is skipped.')
+} else console.log('No NSIS here (makensis), and it could not be fetched: the installer is skipped.')
 
 console.log(`\nBuilt for Windows ${arch}:\n${made.map((f) => `  ${f}  (${(statSync(f).size / 1024 / 1024).toFixed(0)} MB)`).join('\n')}\n  ${app}\\  (the app as a folder)`)

@@ -43,12 +43,6 @@ jobs:
       - name: Tools for the Linux packages
         if: matrix.system == 'linux'
         run: command -v mksquashfs >/dev/null || (sudo apt-get update -q && sudo apt-get install -y -q squashfs-tools)
-      - name: Tools for the Windows installer
-        if: matrix.system == 'win'
-        shell: pwsh
-        run: |
-          if (-not (Get-Command makensis -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
-
       - name: Build the packages
         run: node apps/desktop/scripts/make-${{ matrix.system }}.mjs --arch ${{ matrix.arch }}
 
