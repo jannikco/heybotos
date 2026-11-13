@@ -2,7 +2,7 @@
 // files, links, search, and what of all that reaches the worker.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Hono } from 'hono'
@@ -269,7 +269,7 @@ describe('comments and files', () => {
     const first = readFileSync(stdin, 'utf8')
     expect(first.startsWith('Task: Header\n\nFix the header.\n\nFiles attached to this task (open them when you need them):\n')).toBe(true)
     expect(first).toContain(`- ${shot.path} (picture, 9 B)`)
-    expect(shot.path.endsWith('/Screen Shot.png')).toBe(true)
+    expect(basename(shot.path)).toBe('Screen Shot.png')
     expect(readFileSync(shot.path, 'utf8')).toBe('png-bytes')
     expect(first).toMatch(/Comments on this task:\n- The owner, \d{4}-\d\d-\d\d \d\d:\d\d: Check the footer too\.\n {2}Attached:\n {2}- .*spec\.pdf \(application\/pdf, 9 B\)\n- The manager, .*: Rex reviews it afterwards\./)
 

@@ -63,9 +63,11 @@ try {
   console.log(`The service answers: version ${answer.version}${answer.stage ? ` ${answer.stage}` : ''}, build "${answer.build}"`)
   const built = readFileSync(join(resources, 'heybotos', 'BUILD'), 'utf8').trim()
   if (answer.build !== built) throw new Error(`The service that answers is another build ("${answer.build}") than this app ("${built}").`)
-  for (let i = 0; i < 40 && !existsSync(shot); i++) await sleep(1000)
-  if (!existsSync(shot)) throw new Error('The window never showed the dashboard (no picture of it was saved).')
-  console.log(`The window shows the dashboard: ${shot}`)
+  // The app says so when its window has loaded the dashboard, and then tries to save a picture of it.
+  const loaded = () => output.includes(`[heybotos] loaded http://127.0.0.1:${PORT}/`)
+  for (let i = 0; i < 40 && !(loaded() && (existsSync(shot) || output.includes('[heybotos] shot failed'))); i++) await sleep(1000)
+  if (!loaded()) throw new Error('The window never loaded the dashboard.')
+  console.log(existsSync(shot) ? `The window shows the dashboard: ${shot}` : 'The window loaded the dashboard (this screen could not give a picture of it).')
   console.log(`  ${cli('status')}`)
 } catch (e) {
   problem = e.message

@@ -1,6 +1,7 @@
 // Makes a release of the Mac app: checks that the service runs on the app's own runtime, builds the
 // app for Apple silicon and Intel, signs it (and has Apple notarise it when a Developer ID is given),
-// zips each build, and writes the Homebrew cask with their checksums.
+// zips each build, and writes the Homebrew cask with their checksums. The Linux and Windows packages
+// are built by GitHub (the workflow release.yml) and added to the release afterwards.
 //
 //   node scripts/release.mjs
 //
@@ -131,5 +132,6 @@ console.log(`Version ${version}, ${identity ? (notarised ? 'signed and notarised
 
 To publish:
   gh release create v${version} apps/desktop/dist/HeyBotOS-${version}-arm64.zip apps/desktop/dist/HeyBotOS-${version}-x64.zip --title "HeyBotOS ${version}${stage ? ` (${stage})` : ''}"${stage ? ' --prerelease' : ''} --notes-file CHANGELOG.md
-  then copy apps/desktop/dist/heybotos.rb to Casks/heybotos.rb in the tap repository and push it.`)
+  then copy apps/desktop/dist/heybotos.rb to Casks/heybotos.rb in the tap repository and push it,
+  and add the Linux and Windows packages, which GitHub builds:  gh workflow run release.yml -f tag=v${version}`)
 if (!existsSync(join(repo, 'LICENSE'))) console.warn('Note: there is no LICENSE file in the repository.')

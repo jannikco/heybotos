@@ -94,7 +94,13 @@ export function finishMove(root: string, db: Db, log: (line: string) => void = c
   ]
   db.tx(() => {
     // Only the folder itself, never a neighbour whose name merely starts the same way.
-    for (const [table, column] of columns) db.run(`update ${table} set ${column} = replace(${column}, ?, ?) where instr(${column}, ?) > 0`, `${from}${sep}`, `${to}${sep}`, `${from}${sep}`)
+    // The folder is written plainly in most columns and as text inside JSON in some, where a backslash is doubled.
+    const inJson = (path: string) => JSON.stringify(`${path}${sep}`).slice(1, -1)
+    for (const [table, column] of columns) {
+      for (const [a, b] of new Map([[`${from}${sep}`, `${to}${sep}`], [inJson(from), inJson(to)]])) {
+        db.run(`update ${table} set ${column} = replace(${column}, ?, ?) where instr(${column}, ?) > 0`, a, b, a)
+      }
+    }
     // The manager's earlier session knows its tools by their old names: its next turn starts a new one.
     db.run(`update runs set session_id = null where role = 'manager'`)
   })
