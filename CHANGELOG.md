@@ -1,6 +1,6 @@
 # Changelog
 
-## Not released yet
+## 0.5.1 (beta)
 
 Connectors (MCP servers) that work for real work:
 

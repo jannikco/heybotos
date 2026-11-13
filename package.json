@@ -1,7 +1,7 @@
 {
   "name": "heybotos",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.5.1",
   "stage": "beta",
   "type": "module",
   "packageManager": "pnpm@12.16.1",

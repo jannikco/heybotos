@@ -1,7 +1,7 @@
 {
   "name": "@heybotos/desktop",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "HeyBotOS on the desktop (macOS, Linux, Windows): the native window, menu-bar or notification-area item and shortcuts around the local HeyBotOS service.",
   "author": "HeyBotOS contributors",
   "type": "module",
