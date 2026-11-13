@@ -8,7 +8,7 @@
 // Usage: node scripts/make-app.mjs [--arch arm64|x64]
 // Signing: ad hoc unless HEYBOTOS_SIGN_IDENTITY names a Developer ID (see scripts/release.mjs).
 import { execFileSync } from 'node:child_process'
-import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -127,6 +127,11 @@ set('NSHumanReadableCopyright', '"HeyBotOS contributors. MIT licence."')
 // The executable keeps Electron's name inside the bundle; give it ours so Activity Monitor says HeyBotOS.
 renameSync(join(out, 'Contents', 'MacOS', 'Electron'), join(out, 'Contents', 'MacOS', 'HeyBotOS'))
 set('CFBundleExecutable', 'HeyBotOS')
+
+// Electron's bundle is dated 1980, and macOS remembers an app's icon by the bundle's date: without a
+// date of its own, an update would keep showing the icon of the copy it replaced.
+const builtAt = new Date()
+utimesSync(out, builtAt, builtAt)
 
 // ── signing ──
 const identity = process.env.HEYBOTOS_SIGN_IDENTITY

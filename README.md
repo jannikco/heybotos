@@ -31,6 +31,16 @@ brew install --cask jannikco/tap/heybotos
 Then open HeyBotOS. The first time, it shows which of the three tools are installed and signed in, and asks
 where your projects are.
 
+> **macOS stops the app the first time you open it**, because it is not notarised by Apple yet. To let it through:
+>
+> 1. In the message that says HeyBotOS was not opened, choose OK. Do not choose "Move to Trash".
+> 2. Open System Settings and go to Privacy & Security.
+> 3. Scroll down to Security and choose "Open Anyway" beside the line about HeyBotOS.
+> 4. Confirm with your password or Touch ID.
+>
+> macOS asks again after each update. On a Mac managed by a company, "Open Anyway" can be switched off; then
+> build HeyBotOS from source instead (see below), which macOS does not stop.
+
 You need macOS 12 or newer and at least one of these, installed and signed in with a subscription:
 
 | Tool | Command it provides |
@@ -41,9 +51,6 @@ You need macOS 12 or newer and at least one of these, installed and signed in wi
 
 With more than one, HeyBotOS spreads the work across them and sends a review to a different engine than the
 one that did the work.
-
-> **The app is not notarised by Apple yet.** macOS will refuse to open it the first time. Open System Settings,
-> go to Privacy & Security, and choose "Open Anyway" next to the message about HeyBotOS. You only do this once.
 
 ## What you get
 
