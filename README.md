@@ -123,10 +123,14 @@ and an accident:
 - **The gate.** Three kinds of action wait for your yes in the Inbox: connecting to a server that is not on
   your list (ssh, scp, sftp, rsync, mosh), deploy and publish commands, and connector calls that change
   something. It is a seatbelt against mistakes, not a sandbox.
-- **Connectors are set up once and given per task.** Add an MCP server by web address or command in
-  Settings. A worker gets none of them unless its task names them; then it reaches them through HeyBotOS on
-  any engine, without ever holding their keys. Reads go straight through; calls that change something wait
-  for your yes.
+- **Connectors are set up once and given per task or per project.** Add an MCP server by web address or
+  command in Settings, or bring in the ones Claude Code, its plugins and your project folders already have
+  (workers never get those directly). A worker gets none unless its task or its project names them; then
+  it reaches them through HeyBotOS on any engine, without ever holding their keys. Reads go straight
+  through; calls that change something wait for your yes, unless you allow them.
+- **A worker that reads other people's words has no shell.** With a connector you have not marked as
+  trusted (mail, tickets, customer records), a worker cannot run commands, so nothing it reads can make it
+  act. A tool or a system of your own you mark as trusted, and workers keep their shell with it.
 - **Subscriptions only.** Workers get a clean environment built from an allowlist, so no key variable can
   switch a tool to metered billing, and a turn that is not on the subscription login is stopped before it does
   any work.

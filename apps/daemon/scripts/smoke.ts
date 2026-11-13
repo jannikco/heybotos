@@ -27,7 +27,7 @@ import { loadGateConfig } from '../src/policy/gate.ts'
 import { Registry } from '../src/registry.ts'
 import { Tasks } from '../src/tasks.ts'
 
-const only = process.env.HEYBOTOS_SMOKE_ONLY ?? '' // "basic" or "gate" to run one part
+const only = process.env.HEYBOTOS_SMOKE_ONLY ?? '' // "basic", "gate", "connect", "trusted" … to run one part
 const root = mkdtempSync(join(tmpdir(), 'heybotos-smoke-'))
 const work = join(root, 'code', 'smoke-project')
 mkdirSync(work, { recursive: true })
@@ -54,6 +54,7 @@ const connectors = new ConnectorRegistry(home, db)
 const gateway = new Gateway(home, db, connectors, approvals)
 sup.hubFor = (run) => ({ name: 'hub', url: gateway.urlFor(run.id, approvals.url) })
 tasks.checkConnectors = (names) => connectors.check(names)
+tasks.connectorsTrusted = (names) => connectors.allTrusted(names)
 const app = createApp({ home, bus, supervisor: sup, registry, tasks, approvals, manager, router, routines: new Routines(db, manager), connectors, gateway, staff, settings: new Settings({ home, manager, approvals, router, registry, connectors, supervisor: sup }), threads: new Threads(db, registry), auth, version: 'smoke' })
 const server = await new Promise<ServerType>((resolve) => {
   const s = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: 0 }, () => resolve(s))
@@ -211,6 +212,37 @@ if (only === 'connect') {
   check(`connect (${engine}): the worker stopped to wait`, task.status === 'needs_input', `${task.status}: ${task.summary}`)
   if (process.env.HEYBOTOS_SMOKE_KEEP) copyFileSync(join(home.runs, task.lastRunId!, 'stdout.jsonl'), join(process.env.HEYBOTOS_SMOKE_KEEP, `${engine}-connect.jsonl`))
   if (task.status !== 'needs_input') console.log(readFileSync(join(home.runs, task.lastRunId!, 'stderr.log'), 'utf8').slice(-1500))
+}
+
+if (only === 'trusted') {
+  // A connector the owner trusts, on a real CLI: the worker must have the connector AND its shell, in
+  // the same task. (With a connector that is not trusted it has no shell; the part above covers that.)
+  const engine = (process.env.HEYBOTOS_SMOKE_ENGINE ?? 'claude') as 'claude' | 'codex' | 'grok'
+  const calls = join(root, 'shop-calls.txt')
+  connectors.save({ name: 'shop', command: process.execPath, args: [join(import.meta.dirname, '..', 'test', 'fakes', 'fake-connector.mjs')], env: { SHOP_KEY: 'smoke-key-7', FAKE_CONNECTOR_LOG: calls }, trusted: true })
+  const project = registry.get('smoke-project')!
+  const t = tasks.create({
+    project: 'smoke-project',
+    title: 'Trusted connector check',
+    engine,
+    connectors: ['shop'],
+    brief: 'Two steps, nothing else. 1: run this shell command in the project folder: printf shell-ok > proof.txt   2: call the shop connector\'s search-orders tool with query "4711" and quote what it returns in your summary.',
+  })
+  await new Promise<void>((resolve) => {
+    const timer = setInterval(() => {
+      if (!['todo', 'queued', 'running'].includes(tasks.get(t.id)!.status)) {
+        clearInterval(timer)
+        resolve()
+      }
+    }, 200)
+  })
+  const task = tasks.get(t.id)!
+  const log = existsSync(calls) ? readFileSync(calls, 'utf8') : ''
+  const proof = join(project.path, 'proof.txt')
+  check(`trusted (${engine}): the worker ran a command`, existsSync(proof) && readFileSync(proof, 'utf8').includes('shell-ok'), task.summary ?? '')
+  check(`trusted (${engine}): and reached the connector in the same task`, log.includes('search-orders'), log || '(the connector was never called)')
+  check(`trusted (${engine}): and finished`, task.status === 'done', `${task.status}: ${task.summary}`)
+  if (task.status !== 'done') console.log(readFileSync(join(home.runs, task.lastRunId!, 'stderr.log'), 'utf8').slice(-1500))
 }
 
 if (only === '' || only === 'manager') {

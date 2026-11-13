@@ -15,6 +15,9 @@ const problem = ref('')
 const notes = ref('')
 const saved = ref('')
 const creating = ref(false)
+/** The connectors that are set up, and which of them every task in this project gets. */
+const connectors = ref<Array<{ name: string; enabled: boolean; trusted: boolean }>>([])
+const usual = ref<string[]>([])
 
 async function load(): Promise<void> {
   problem.value = ''
@@ -23,6 +26,10 @@ async function load(): Promise<void> {
     project.value = res.project
     worktrees.value = res.worktrees
     notes.value = res.project.notes
+    usual.value = [...res.project.connectors]
+    void api<{ list: Array<{ name: string; enabled: boolean; trusted: boolean }> }>('/api/connectors')
+      .then((r) => (connectors.value = r.list.filter((c) => c.enabled)))
+      .catch(() => {})
   } catch (e) {
     project.value = null
     problem.value = (e as ApiError).message
@@ -42,6 +49,21 @@ const WORDS: Record<TaskStatus, string> = {
   done: 'Done',
   failed: 'Failed',
   cancelled: 'Stopped',
+}
+
+/** Saved as it is ticked, like a setting. */
+async function setUsual(name: string, on: boolean): Promise<void> {
+  problem.value = ''
+  const next = on ? [...usual.value.filter((c) => c !== name), name] : usual.value.filter((c) => c !== name)
+  try {
+    // Only ones that are still set up are kept.
+    const res = await api<{ project: ProjectView }>(`/api/projects/${slug.value}`, { method: 'PUT', body: { connectors: next.filter((c) => connectors.value.some((x) => x.name === c)) } })
+    usual.value = [...res.project.connectors]
+    const known = state.projects.find((p) => p.slug === slug.value)
+    if (known) known.connectors = [...res.project.connectors]
+  } catch (e) {
+    problem.value = (e as ApiError).message
+  }
 }
 
 async function saveNotes(): Promise<void> {
@@ -101,6 +123,22 @@ async function saveNotes(): Promise<void> {
           <button class="btn" :disabled="notes === project.notes && !saved" @click="saveNotes().then(load)">Save notes</button>
           <p v-if="saved" class="text-ok text-sm" role="status">{{ saved }}</p>
         </div>
+      </section>
+
+      <section class="mt-8" aria-labelledby="p-connectors">
+        <h2 id="p-connectors" class="text-xl">Connectors for every task here</h2>
+        <p class="text-ink-2 mt-1.5 max-w-[62ch]">Workers do not get the connectors or plugins of the tools themselves. Tick what every worker in this project should have, such as a browser to drive; a single task can still be given others.</p>
+        <p v-if="!connectors.length" class="text-ink-3 mt-3">None are set up yet. <RouterLink to="/settings/connectors" class="underline underline-offset-2">Add one, or bring in the ones Claude Code has</RouterLink>.</p>
+        <ul v-else class="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+          <li v-for="c in connectors" :key="c.name">
+            <label class="flex items-center gap-2">
+              <input type="checkbox" class="accent-signal size-4" :checked="usual.includes(c.name)" @change="setUsual(c.name, ($event.target as HTMLInputElement).checked)" />
+              <span>{{ c.name }}</span>
+              <span v-if="!c.trusted" class="text-ink-3 text-sm">(no shell with it)</span>
+            </label>
+          </li>
+        </ul>
+        <p v-if="usual.some((u) => connectors.some((c) => c.name === u && !c.trusted))" class="text-wait mt-2 max-w-[62ch] text-sm">A worker that has a connector marked "no shell" cannot run commands or tests. If it is a tool or a system of your own, mark it as trusted in <RouterLink to="/settings/connectors" class="underline underline-offset-2">Settings</RouterLink>.</p>
       </section>
 
       <section v-if="worktrees.length" class="mt-8">

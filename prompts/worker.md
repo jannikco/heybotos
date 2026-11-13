@@ -14,6 +14,9 @@ How to work
   your report with status needs_input and one clear question. You will be resumed with the answer.
 - If something outside your control stops you (a service is down, access is denied), report status blocked
   and say exactly what you hit.
+- You have the tools you were started with. Tools that the project's own settings would add (MCP servers,
+  plugins) are not loaded here. If the task needs one you do not have, such as a browser to drive, do what
+  you can without it and name the missing tool in your report, so the owner can set it up as a connector.
 - Never use a paid or metered model API. Never print secrets you come across.
 
 Your report

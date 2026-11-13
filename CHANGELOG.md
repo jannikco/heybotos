@@ -1,5 +1,26 @@
 # Changelog
 
+## Not released yet
+
+Connectors (MCP servers) that work for real work:
+
+- **A connector you trust leaves the worker its shell.** Until now any worker with a connector lost the
+  ability to run commands and tests, which made a browser or your own system useless next to coding. Each
+  connector now says whether workers keep their shell with it (Settings, Connectors). It is off by default:
+  a connector that brings in text other people wrote could try to steer a worker. When you add a connector
+  you say what it is: a tool of yours, a system of yours, or other people's words.
+- **"Allow all"** lets a connector's tools be used without asking, for a tool like a browser where every
+  click would otherwise wait for your yes.
+- **"Bring in from Claude Code" also finds what plugins and project folders add** (a plugin's `.mcp.json`, a
+  project's `.mcp.json`). Workers never get Claude Code's own connectors or plugins directly; this is how
+  they reach them.
+- **A project can name connectors every task in it gets** (on the project's page), so a browser for one
+  repository is set once.
+- The manager and the workers now know all this: a worker names a missing tool in its report, and the
+  manager tells you how to set it up instead of treating it as a dead end.
+
+Not yet: connectors that only run inside a project's folder (such as a framework's own helper).
+
 ## 0.5.0 (beta)
 
 - **HeyBotOS updates itself.** It looks for a newer version now and then and says so in the sidebar. In

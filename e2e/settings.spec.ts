@@ -349,3 +349,59 @@ test('a newer version: said in the sidebar, shown with what is new, and installe
   // After the reload the newer version is known at once (the service remembers it), and the sidebar says so.
   await expect(sidebar(page).getByRole('link', { name: 'Update' })).toBeVisible()
 })
+
+test('a connector you trust leaves workers their shell, and a project can give it to every task', async ({ page }) => {
+  await signIn(page, '/settings/connectors')
+  const row = (name: string) => page.getByRole('listitem').filter({ has: page.getByRole('button', { name: new RegExp(`^${name}, `) }) })
+
+  // Out of the box a connector is not trusted: a worker that uses it has no shell.
+  const shop = row('shop')
+  await shop.getByRole('button', { name: /^shop, / }).click()
+  const keep = shop.getByRole('switch', { name: 'Workers keep their shell with shop' })
+  await expect(keep).not.toBeChecked()
+  await expect(shop).toContainText('A worker that uses it cannot run commands')
+  await keep.click()
+  await expect(keep).toBeChecked()
+  await expect(shop).toContainText('You trust what it returns')
+  await expect(shop.getByRole('button', { name: /^shop, / })).toContainText('trusted')
+
+  // Adding one asks what it is; a tool of your own is trusted from the start.
+  await page.getByRole('button', { name: 'Add connector' }).first().click()
+  const form = page.getByRole('dialog', { name: 'Add a connector' })
+  await expect(form.getByRole('radio', { name: /Other people's words/ })).toBeChecked()
+  await form.getByLabel('Name').fill('my browser')
+  await form.getByLabel('Web address, or the command that starts it').fill('http://127.0.0.1:9/nothing')
+  await form.getByRole('radio', { name: /A tool of mine/ }).check()
+  await form.getByRole('button', { name: 'Add connector' }).click()
+  await expect(form).toBeHidden()
+  await expect(row('my-browser').getByRole('button', { name: /^my-browser, / })).toContainText('trusted')
+
+  // The project page: every task in the shop gets the shop connector from now on.
+  await page.goto('/projects/shop')
+  const usual = page.getByRole('region', { name: 'Connectors for every task here' })
+  await expect(usual.getByText('(no shell with it)').first()).toBeVisible() // crm is not trusted
+  await usual.getByRole('checkbox', { name: 'shop', exact: true }).check()
+  await page.reload()
+  await expect(page.getByRole('region', { name: 'Connectors for every task here' }).getByRole('checkbox', { name: 'shop', exact: true })).toBeChecked()
+
+  // A new task there has it ticked, and says nothing about a missing shell until one that is not trusted is added.
+  await page.getByRole('button', { name: 'New task here' }).click()
+  const dialog = newTaskDialog(page)
+  await expect(dialog.getByRole('checkbox', { name: 'shop', exact: true })).toBeChecked()
+  await expect(dialog.getByText('The ones this project always gets are ticked.')).toBeVisible()
+  await expect(dialog.getByText(/cannot run commands or tests/)).toHaveCount(0)
+  await dialog.getByRole('checkbox', { name: 'crm', exact: true }).check()
+  await expect(dialog.getByRole('status').filter({ hasText: 'With crm this worker cannot run commands or tests' })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+
+  // Put things back for the tests that follow.
+  await page.getByRole('region', { name: 'Connectors for every task here' }).getByRole('checkbox', { name: 'shop', exact: true }).uncheck()
+  await page.goto('/settings/connectors')
+  await row('shop').getByRole('button', { name: /^shop, / }).click()
+  await row('shop').getByRole('switch', { name: 'Workers keep their shell with shop' }).click()
+  await expect(row('shop').getByRole('switch', { name: 'Workers keep their shell with shop' })).not.toBeChecked()
+  page.once('dialog', (d) => void d.accept())
+  await row('my-browser').getByRole('button', { name: /^my-browser, / }).click()
+  await row('my-browser').getByRole('button', { name: 'Remove' }).click()
+  await expect(row('my-browser')).toHaveCount(0)
+})
