@@ -54,8 +54,8 @@ cpSync(join(desktop, 'build', 'icons', '512.png'), join(app, 'heybotos.png'))
 run('chmod', ['-R', 'go-w,a+rX', app])
 
 // What the menu entry starts. Chromium's sandbox needs either its helper owned by root with the
-// setuid bit (the .deb sets that up) or permission to make user namespaces (some distributions
-// switch that off for programs outside the system folders). Without either the window could not
+// setuid bit (the .deb sets that up) or permission to make user namespaces (Ubuntu 24.04 and later
+// keep that from programs that have no AppArmor profile). Without either the window could not
 // open at all, so only then is the sandbox left out; the window shows HeyBotOS's own local page and
 // nothing from the web.
 script(
@@ -65,7 +65,7 @@ here="$(dirname "$(readlink -f "$0")")"
 sandbox="$here/chrome-sandbox"
 if [ -u "$sandbox" ] && [ "$(stat -c %u "$sandbox" 2>/dev/null)" = 0 ]; then
   exec "$here/heybotos" "$@"
-elif unshare -U true 2>/dev/null; then
+elif [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" != 1 ] && unshare -Ur true 2>/dev/null; then
   exec "$here/heybotos" "$@"
 fi
 exec "$here/heybotos" --no-sandbox "$@"

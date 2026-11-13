@@ -102,7 +102,15 @@ export class Approvals {
     for (const name of ['.zshenv', '.zprofile', '.zshrc', '.zlogin']) {
       writeFileSync(join(this.zdotDir, name), `[ -f "$HOME/${name}" ] && . "$HOME/${name}"\n${name === '.zshenv' ? '' : front}`)
     }
-    writeFileSync(this.bashEnv, `case ":$PATH:" in ":$HEYBOTOS_SHIM_DIR:"*) ;; *) ${front.trim()} ;; esac\n`)
+    // Git's bash on Windows keeps PATH in its own form (/c/Users/…), so the folder is turned into that first.
+    writeFileSync(
+      this.bashEnv,
+      `d="$HEYBOTOS_SHIM_DIR"
+case "$d" in [A-Za-z]:*) command -v cygpath >/dev/null 2>&1 && d="$(cygpath -u "$d")" ;; esac
+case ":$PATH:" in ":$d:"*) ;; *) [ -n "$d" ] && export PATH="$d:$PATH" ;; esac
+unset d
+`,
+    )
   }
 
   /** A token that lets one run ask the gate about itself, and nothing else. */

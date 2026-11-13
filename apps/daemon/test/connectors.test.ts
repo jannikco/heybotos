@@ -88,7 +88,7 @@ describe("HeyBotOS's own connectors", () => {
     expect(() => w.connectors.save({ name: 'hub', url: 'https://x.example/mcp' })).toThrow(/HeyBotOS uses itself/)
     expect(() => w.connectors.save({ name: 'crm' })).toThrow(/needs a web address, or a command/)
     expect(() => w.connectors.save({ name: 'crm', url: 'ftp://x.example' })).toThrow(/must start with http/)
-    expect(statSync(w.home.dbPath).mode & 0o077).toBe(0) // keys live in the database: owner only
+    if (process.platform !== 'win32') expect(statSync(w.home.dbPath).mode & 0o077).toBe(0) // keys live in the database: owner only
   })
 
   it('asks a connector what it offers and remembers the answer, or why it could not', async () => {
@@ -163,7 +163,7 @@ describe('connectors on every engine', () => {
     const args: string[] = JSON.parse(readFileSync(join(w.root, 'args.json'), 'utf8'))
     const mcpFile = args[args.indexOf('--mcp-config') + 1]!
     expect(JSON.parse(readFileSync(mcpFile, 'utf8'))).toEqual({ mcpServers: { hub: { type: 'http', url: t.url } } })
-    expect(statSync(mcpFile).mode & 0o077).toBe(0) // carries the run's pass: owner only
+    if (process.platform !== 'win32') expect(statSync(mcpFile).mode & 0o077).toBe(0) // carries the run's pass: owner only
     expect(args).toContain('--strict-mcp-config')
     const tools = args[args.indexOf('--tools') + 1]!.split(',')
     expect(tools).not.toContain('Bash')
@@ -195,7 +195,7 @@ describe('connectors on every engine', () => {
     const args: string[] = JSON.parse(readFileSync(join(w.root, 'args.json'), 'utf8'))
     const agentFile = args[args.indexOf('--agent') + 1]!
     expect(readFileSync(agentFile, 'utf8')).toContain(`mcpServers:\n  - hub:\n      type: http\n      url: ${JSON.stringify(t.url)}`)
-    expect(statSync(agentFile).mode & 0o077).toBe(0)
+    if (process.platform !== 'win32') expect(statSync(agentFile).mode & 0o077).toBe(0)
     expect(args.filter((a, i) => args[i - 1] === '--deny')).toEqual(['shopsystem__*', 'messages__*'])
     expect(args[args.indexOf('--disallowed-tools') + 1]).toContain('run_terminal_command')
   })

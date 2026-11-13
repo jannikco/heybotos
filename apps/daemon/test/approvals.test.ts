@@ -6,7 +6,7 @@ import { serve, type ServerType } from '@hono/node-server'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Auth } from '../src/http/auth.ts'
 import { createApp } from '../src/http/app.ts'
-import { FAKE, FIXTURES, git, makeWorld, scriptEnv, sh, standIn, until, variant, type World } from './helpers.ts'
+import { FAKE, FIXTURES, firstOnPath, git, makeWorld, scriptEnv, sh, standIn, until, variant, type World } from './helpers.ts'
 
 let w: World
 let server: ServerType
@@ -80,9 +80,9 @@ describe('every worker is wired to the gate', () => {
     const runId = w.tasks.get(t.id)!.lastRunId!
     const settings = JSON.parse(readFileSync(join(w.home.runs, runId, 'settings.json'), 'utf8'))
     expect(settings.hooks.PreToolUse[0]).toMatchObject({ matcher: 'Bash|mcp__.*', hooks: [{ type: 'command', onFailure: 'block' }] })
-    expect(settings.hooks.PreToolUse[0].hooks[0].command).toContain('gate-hook.mjs')
+    expect(settings.hooks.PreToolUse[0].hooks[0].command).toContain('gate-hook')
     const env = JSON.parse(readFileSync(join(w.root, 'env.json'), 'utf8')) as Record<string, string>
-    expect(env.PATH!.split(delimiter)[0]).toBe(join(w.home.state, 'shims'))
+    expect(env.PATH).toMatch(firstOnPath(join(w.home.state, 'shims')))
     expect(env.HEYBOTOS_GATE_TOKEN).toBe(w.approvals.token(runId))
     expect(w.approvals.verify(runId, env.HEYBOTOS_GATE_TOKEN!)).toBe(true)
     expect(w.approvals.verify('r_other', env.HEYBOTOS_GATE_TOKEN!)).toBe(false)

@@ -334,7 +334,7 @@ export class Registry {
           common = c ? (isAbsolute(c) ? c : resolve(path, c)) : null
           // The same .git reached through a symlink must still be the same lock.
           try {
-            if (common) common = realpathSync(common)
+            if (common) common = realpathSync.native(common)
           } catch {
             /* keep the unresolved path */
           }

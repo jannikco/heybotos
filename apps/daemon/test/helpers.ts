@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -30,7 +30,16 @@ export const FIXTURES = join(here, 'fixtures')
 export const BASIC = join(FIXTURES, 'claude-basic.jsonl')
 
 /** git in a folder, as text. */
-export const git = (dir: string, ...args: string[]) => execFileSync(GIT, ['-C', dir, ...args], { encoding: 'utf8' }).trim()
+export function git(dir: string, ...args: string[]): string {
+  const out = execFileSync(GIT, ['-C', dir, ...args], { encoding: 'utf8' }).trim()
+  // A new repository keeps files byte for byte, whatever this computer's git is set to do with line
+  // endings (on Windows it usually rewrites them), so what a test writes is what it reads back.
+  if (args[0] === 'init') execFileSync(GIT, ['-C', dir, 'config', 'core.autocrlf', 'false'])
+  return out
+}
+
+/** Whether `path` (a PATH as a program got it) starts with `dir`. */
+export const firstOnPath = (dir: string) => new RegExp(`^${dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[;:]`, WIN ? 'i' : '')
 
 /** A path the way a shell script wants it. On Windows the scripts run in Git's shell, which takes forward slashes. */
 export const sh = (path: string) => (WIN ? path.replace(/\\/g, '/') : path)
@@ -87,7 +96,8 @@ export interface World {
 
 /** `before` runs when the data folder exists and nothing has opened the database yet. */
 export function makeWorld(before?: (home: Home) => void): World {
-  const root = mkdtempSync(join(tmpdir(), 'heybotos-test-'))
+  // The folder's one true spelling: Windows also knows it by a short name (RUNNER~1), and git answers with the long one.
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'heybotos-test-')))
   const home = openHome(root)
   before?.(home)
   home.config.keepAwake = false

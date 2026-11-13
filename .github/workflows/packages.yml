@@ -38,6 +38,7 @@ jobs:
       - run: pnpm build
       - name: Run the service's tests on the app's own runtime
         run: node apps/desktop/scripts/test-on-runtime.mjs
+        timeout-minutes: 15
 
       - name: Tools for the Linux packages
         if: matrix.system == 'linux'

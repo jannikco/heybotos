@@ -5,7 +5,7 @@
 import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import type { Db } from './db.ts'
 import { GIT } from './platform.ts'
 
@@ -94,7 +94,7 @@ export function finishMove(root: string, db: Db, log: (line: string) => void = c
   ]
   db.tx(() => {
     // Only the folder itself, never a neighbour whose name merely starts the same way.
-    for (const [table, column] of columns) db.run(`update ${table} set ${column} = replace(${column}, ?, ?) where ${column} like ?`, `${from}/`, `${to}/`, `%${from}/%`)
+    for (const [table, column] of columns) db.run(`update ${table} set ${column} = replace(${column}, ?, ?) where instr(${column}, ?) > 0`, `${from}${sep}`, `${to}${sep}`, `${from}${sep}`)
     // The manager's earlier session knows its tools by their old names: its next turn starts a new one.
     db.run(`update runs set session_id = null where role = 'manager'`)
   })

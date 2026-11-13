@@ -49,7 +49,7 @@ export function isRepo(dir: string): boolean {
   const top = tryGit(dir, ['rev-parse', '--show-toplevel'], { timeoutMs: 10_000 })
   if (!top) return false
   try {
-    return realpathSync(top) === realpathSync(dir)
+    return realpathSync.native(top) === realpathSync.native(dir)
   } catch {
     return false
   }

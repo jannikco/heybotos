@@ -83,6 +83,8 @@ export interface Launch {
   env: Record<string, string>
   /** Windows only: the arguments are already quoted for the command interpreter. */
   verbatim: boolean
+  /** A folder to add at the end of PATH, for what the program needs beside it (a shell's own tools). */
+  pathEnd?: string
 }
 
 const asIs = (file: string, args: string[]): Launch => ({ file, args, env: {}, verbatim: false })
@@ -104,16 +106,18 @@ function firstLine(file: string): string {
   }
 }
 
-/** A Unix shell on Windows: the one Git for Windows brings. (The bash in System32 starts WSL, which is something else.) */
+/**
+ * A Unix shell on Windows: the bash that Git for Windows brings. (The bash in System32 starts WSL,
+ * which is something else.) The one under usr\bin is the shell itself; the one under bin is a
+ * starter that first puts Git's own folders at the front of PATH.
+ */
 export function windowsSh(): string | null {
   const e = process.env
-  for (const root of [e.ProgramFiles, e['ProgramFiles(x86)'], e.LOCALAPPDATA && join(e.LOCALAPPDATA, 'Programs')]) {
-    if (!root) continue
-    for (const rel of [join('Git', 'bin', 'sh.exe'), join('Git', 'usr', 'bin', 'sh.exe')]) if (existsSync(join(root, rel))) return join(root, rel)
-  }
-  for (const dir of (e.PATH ?? '').split(delimiter)) {
-    if (!dir || /\\system32\\?$/i.test(dir)) continue
-    if (existsSync(join(dir, 'sh.exe'))) return join(dir, 'sh.exe')
+  const roots = [e.ProgramFiles, e['ProgramFiles(x86)'], e.LOCALAPPDATA && join(e.LOCALAPPDATA, 'Programs')].filter((r): r is string => Boolean(r)).map((r) => join(r, 'Git'))
+  // Git is often on PATH as ...\Git\cmd or ...\Git\bin: its folder is one up from there.
+  for (const dir of (e.PATH ?? '').split(delimiter)) if (/[\\/]Git[\\/](cmd|bin)[\\/]?$/i.test(dir)) roots.push(join(dir, '..'))
+  for (const root of roots) {
+    for (const rel of [join('usr', 'bin', 'bash.exe'), join('usr', 'bin', 'sh.exe'), join('bin', 'bash.exe')]) if (existsSync(join(root, rel))) return join(root, rel)
   }
   return null
 }
@@ -158,7 +162,7 @@ export function launch(file: string, args: string[]): Launch {
   if (first.startsWith('#!')) {
     if (/\bnode\b/.test(first)) return asNode(file, args)
     const sh = windowsSh()
-    if (sh) return asIs(sh, [file, ...args])
+    if (sh) return { ...asIs(sh, [file, ...args]), pathEnd: dirname(sh) }
   }
   return asIs(file, args)
 }
@@ -169,16 +173,26 @@ function placed(file: string, env: NodeJS.ProcessEnv | undefined): string {
   return findProgram(file, (env ?? process.env).PATH ?? (env ?? process.env).Path ?? '') ?? file
 }
 
+/** The environment a program is started in: what was asked for, plus what this way of starting it needs. */
+function envFor(l: Launch, given: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...(given ?? process.env), ...l.env }
+  if (l.pathEnd) {
+    const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH'
+    env[key] = [env[key], l.pathEnd].filter(Boolean).join(delimiter)
+  }
+  return env
+}
+
 /** Start a program that keeps running. Like spawn(), but a script or command file starts on Windows too. */
 export function startProgram(file: string, args: string[], options: SpawnOptions = {}): ChildProcess {
   const l = launch(placed(file, options.env), args)
-  return spawn(l.file, l.args, { ...options, env: { ...(options.env ?? process.env), ...l.env }, windowsHide: true, windowsVerbatimArguments: l.verbatim })
+  return spawn(l.file, l.args, { ...options, env: envFor(l, options.env), windowsHide: true, windowsVerbatimArguments: l.verbatim })
 }
 
 /** Run a program and hand its output to `done`. Like execFile(). */
 export function runProgram(file: string, args: string[], options: ExecFileOptions, done: (err: Error | null, stdout: string, stderr: string) => void): ChildProcess {
   const l = launch(placed(file, options.env), args)
-  return execFile(l.file, l.args, { ...options, encoding: 'utf8', env: { ...(options.env ?? process.env), ...l.env }, windowsHide: true, windowsVerbatimArguments: l.verbatim }, (err, stdout, stderr) => done(err, String(stdout), String(stderr)))
+  return execFile(l.file, l.args, { ...options, encoding: 'utf8', env: envFor(l, options.env), windowsHide: true, windowsVerbatimArguments: l.verbatim }, (err, stdout, stderr) => done(err, String(stdout), String(stderr)))
 }
 
 /** Run a program and wait for its output. Like execFileSync() with text output. */
@@ -186,7 +200,7 @@ export function runProgramSync(file: string, args: string[], options: ExecFileSy
   const l = launch(placed(file, options.env), args)
   // execFileSync passes this on to the system like spawn does; its types just do not list it.
   const verbatim = { windowsVerbatimArguments: l.verbatim } as ExecFileSyncOptions
-  return String(execFileSync(l.file, l.args, { ...options, ...verbatim, encoding: 'utf8', env: { ...(options.env ?? process.env), ...l.env }, windowsHide: true }) ?? '')
+  return String(execFileSync(l.file, l.args, { ...options, ...verbatim, encoding: 'utf8', env: envFor(l, options.env), windowsHide: true }) ?? '')
 }
 
 /** git, wherever it is installed. */

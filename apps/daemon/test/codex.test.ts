@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { delimiter, join } from 'node:path'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildCodexArgs, createCodexParser, unwrapCommand } from '../src/engines/codex.ts'
-import { FAKE, FIXTURES, git, makeWorld, sh, until, type World } from './helpers.ts'
+import { FAKE, FIXTURES, firstOnPath, git, makeWorld, sh, until, type World } from './helpers.ts'
 
 const lines = (name: string) => readFileSync(join(FIXTURES, name), 'utf8').split('\n').filter(Boolean)
 
@@ -93,7 +93,7 @@ describe('a codex worker in a task', () => {
     expect(stdin).toContain('You are a worker agent started by HeyBotOS')
     expect(stdin).toContain('Your task:\n\nTask: Make the file\n\nCreate made.txt.')
     const env = JSON.parse(readFileSync(join(w.root, 'env.json'), 'utf8')) as Record<string, string>
-    expect(env.PATH!.split(delimiter)[0]).toBe(join(w.home.state, 'shims'))
+    expect(env.PATH).toMatch(firstOnPath(join(w.home.state, 'shims')))
     expect(env.ZDOTDIR).toBe(join(w.home.state, 'zdot'))
 
     w.home.config.engines.codex.env = { ...w.home.config.engines.codex.env, FAKE_FIXTURE: join(FIXTURES, 'codex-resume.jsonl') }
@@ -106,7 +106,7 @@ describe('a codex worker in a task', () => {
   })
 
   // A login shell rebuilds PATH from the system's and the owner's start-up files, which would put the
-  // real ssh first again. Checked for each shell this computer has; Windows has no login shell.
+  // real ssh first again. Checked for each shell this computer has.
   it.skipIf(process.platform === 'win32')('keeps the gate wrappers in front even in a login shell, which is how Codex runs commands', () => {
     mkdirSync(join(w.root, 'bin'))
     writeFileSync(join(w.root, 'bin', 'ssh'), '#!/bin/sh\necho real\n', { mode: 0o755 })
@@ -124,6 +124,18 @@ describe('a codex worker in a task', () => {
         env: { PATH: `${shims}:${join(w.root, 'bin')}:/usr/bin:/bin`, HOME: fakeHome, ZDOTDIR: zdot, BASH_ENV: join(zdot, 'bash-env.sh'), HEYBOTOS_SHIM_DIR: shims },
       }).trim()
       expect(found, shell).toBe(join(shims, 'ssh'))
+    }
+  })
+
+  // On Windows the tools run their commands in Git's bash, whose starter puts Git's own folders (with
+  // Git's ssh in them) at the front of PATH. The start-up file puts the wrappers back in front.
+  it.skipIf(process.platform !== 'win32' || !existsSync(join(process.env.ProgramFiles ?? '', 'Git', 'bin', 'bash.exe')))("keeps the gate wrappers in front in Git's bash on Windows", () => {
+    const shims = join(w.home.state, 'shims')
+    const bash = join(process.env.ProgramFiles!, 'Git', 'bin', 'bash.exe')
+    const env = { ...process.env, PATH: `${shims};${process.env.PATH}`, BASH_ENV: join(w.home.state, 'zdot', 'bash-env.sh'), HEYBOTOS_SHIM_DIR: shims }
+    for (const flags of [['-c'], ['-lc']]) {
+      const found = execFileSync(bash, [...flags, 'cygpath -w "$(command -v ssh)"'], { encoding: 'utf8', env }).trim()
+      expect(found.toLowerCase(), flags.join(' ')).toBe(join(shims, 'ssh').toLowerCase())
     }
   })
 })

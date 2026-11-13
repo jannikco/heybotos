@@ -15,6 +15,9 @@ coding agents and people alike; `CONTRIBUTING.md` has the short version.
   fixture is cleaned of names, paths, ids, tool lists and model names before it is committed.
 - **Nothing private in the repository.** No real names of people, companies, servers or projects, no home
   paths, no keys. Examples use made-up names (`shop`, `web1`, `example.org`).
+- **Three systems, one of them unseen.** The tests run on macOS, Linux and Windows in the GitHub check. In a
+  test, never write a Unix path into a shell script or call a program by a fixed path: use `sh()`, `git()`,
+  `standIn()` and `scriptEnv()` from `apps/daemon/test/helpers.ts`. Say "this computer", not "this Mac".
 - **Tests never spend usage.** `pnpm test` and `pnpm e2e` use the fake CLI in `apps/daemon/test/fakes/` that
   replays recorded fixtures. Only `pnpm smoke` talks to a real CLI; run it deliberately and with a small model
   (`HEYBOTOS_SMOKE_MODEL`).
@@ -50,6 +53,12 @@ coding agents and people alike; `CONTRIBUTING.md` has the short version.
     `~/heybotos/files`, never served as something that can run), `src/registry.ts` (projects and their keys),
     `src/git.ts` (snapshots in a temporary index, refs under `refs/heybotos/`).
   - `src/migrate.ts` carries an installation from the old name (BotOS, `~/botos`) over, once.
+  - `src/platform.ts` is the one place that knows which system this is: where programs are found and how
+    they are started (`launch()`, `startProgram()`, `runProgram()`: on Windows a script or command file
+    cannot be started directly), how a worker and everything it started is stopped, notifications, staying
+    awake, opening a link. Do not test `process.platform` elsewhere in the service, and do not write a
+    fixed path to a program (`/usr/bin/git`): ask `platform.ts`. `src/cli.ts` holds the background service
+    for each system (launchd, systemd user service or autostart entry, Windows Run key).
   - `src/policy/gate.ts` + `src/approvals.ts` + `hooks/` — the gate: rulebook, inbox requests, the
     PreToolUse hook and the PATH wrappers. Workers also get `state/zdot` as their zsh start-up folder so the
     wrappers stay first in login shells.
@@ -77,12 +86,17 @@ coding agents and people alike; `CONTRIBUTING.md` has the short version.
     main action. Status colours keep their meaning.
   - The tracker's pages are not built yet. Its service side is: `src/tracker.ts` and `components/task/` are
     the start of the pages.
-- `apps/desktop` — the Mac app, an Electron shell. `scripts/make-app.mjs` builds `HeyBotOS.app` with the
+- `apps/desktop` — the desktop app, an Electron shell, for macOS, Linux and Windows. `scripts/make-app.mjs` builds `HeyBotOS.app` with the
   service, the dashboard, the prompts and the gate scripts under `Contents/Resources/heybotos`, laid out as in
   this repository, and run by the app's own runtime (`ELECTRON_RUN_AS_NODE`). Every time the app opens it
   calls `cli.ts ensure`, which sets up, starts or (after an update) restarts the background service
   `com.heybotos.daemon`. `scripts/release.mjs` builds both architectures, signs, zips and writes the cask;
   `scripts/make-icons.mjs` draws every icon from the mark.
+  `scripts/make-linux.mjs` (on Linux: `.deb`, AppImage, `.tar.gz`) and `scripts/make-win.mjs` (on Windows:
+  installer and `.zip`) build the other two from the same payload (`scripts/payload.mjs`).
+  `scripts/smoke-app.mjs` starts a built app and checks that its window opens and its service answers; the
+  GitHub check runs it on Linux and Windows, because that is the only place Windows is ever tried.
+  `.github/workflows/release.yml` (run by hand with a tag) adds the Linux and Windows packages to a release.
 - `e2e` — Playwright against the daemon in demo mode.
 
 ## Commands
