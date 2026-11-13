@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -21,11 +22,45 @@ import { claudeAdapter } from '../src/engines/claude.ts'
 import { codexAdapter } from '../src/engines/codex.ts'
 import { grokAdapter } from '../src/engines/grok.ts'
 import { Supervisor, type RunExtra } from '../src/engines/supervisor.ts'
+import { GIT, WIN } from '../src/platform.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const FAKE = join(here, 'fakes', 'fake-cli.mjs')
 export const FIXTURES = join(here, 'fixtures')
 export const BASIC = join(FIXTURES, 'claude-basic.jsonl')
+
+/** git in a folder, as text. */
+export const git = (dir: string, ...args: string[]) => execFileSync(GIT, ['-C', dir, ...args], { encoding: 'utf8' }).trim()
+
+/** A path the way a shell script wants it. On Windows the scripts run in Git's shell, which takes forward slashes. */
+export const sh = (path: string) => (WIN ? path.replace(/\\/g, '/') : path)
+
+/** What one of HeyBotOS's own scripts needs in its environment to be started by hand in a test. */
+export function scriptEnv(): Record<string, string> {
+  const env: Record<string, string> = { PATH: process.env.PATH! }
+  // Windows programs do not get far without knowing where the system is.
+  if (WIN) for (const k of ['SystemRoot', 'SystemDrive', 'TEMP', 'TMP', 'USERPROFILE', 'ComSpec', 'PATHEXT']) if (process.env[k]) env[k] = process.env[k]!
+  // When the tests themselves run on the desktop app's runtime, that program has to be told to act as Node.
+  if (process.versions.electron) env.ELECTRON_RUN_AS_NODE = '1'
+  return env
+}
+
+/** A stand-in for a program on PATH that only notes what it was called with, one call per line. */
+export function standIn(dir: string, name: string, log: string): void {
+  mkdirSync(dir, { recursive: true })
+  if (WIN) writeFileSync(join(dir, `${name}.cmd`), `@echo off\r\necho %*>> "${log}"\r\n`)
+  else writeFileSync(join(dir, name), `#!/bin/sh\necho "$@" >> ${log}\n`, { mode: 0o755 })
+}
+
+/** Stop a process and everything it started, now. */
+export function killTree(pid: number): void {
+  try {
+    if (WIN) execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+    else process.kill(-pid, 'SIGKILL')
+  } catch {
+    /* gone */
+  }
+}
 
 export interface World {
   root: string
@@ -122,14 +157,15 @@ export function makeWorld(before?: (home: Home) => void): World {
       manager.stop()
       for (const s of sups) s.shutdown()
       for (const r of db.all<{ pid: number | null }>('select pid from runs where pid is not null')) {
-        try {
-          process.kill(-r.pid!, 'SIGKILL')
-        } catch {
-          /* gone */
-        }
+        killTree(r.pid!)
       }
       db.close()
-      rmSync(root, { recursive: true, force: true })
+      try {
+        rmSync(root, { recursive: true, force: true, maxRetries: WIN ? 20 : 0, retryDelay: 100 })
+      } catch (e) {
+        // Windows will not remove a folder while a program that is just ending still has a file open in it.
+        if (!WIN) throw e
+      }
     },
   }
 }

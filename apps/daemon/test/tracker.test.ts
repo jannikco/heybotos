@@ -11,11 +11,10 @@ import { createApp } from '../src/http/app.ts'
 import { MIGRATIONS } from '../src/db.ts'
 import { safeName } from '../src/files.ts'
 import { keyFrom } from '../src/registry.ts'
-import { FIXTURES, makeWorld, until, variant, type World } from './helpers.ts'
+import { FIXTURES, git, makeWorld, until, variant, type World } from './helpers.ts'
 
 let w: World
 const RICH = join(FIXTURES, 'claude-rich.jsonl')
-const git = (dir: string, ...args: string[]) => execFileSync('/usr/bin/git', ['-C', dir, ...args], { encoding: 'utf8' }).trim()
 
 function makeRepo(name: string): string {
   const dir = join(w.root, 'code', name)

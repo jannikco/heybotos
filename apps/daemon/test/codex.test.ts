@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildCodexArgs, createCodexParser, unwrapCommand } from '../src/engines/codex.ts'
-import { FAKE, FIXTURES, makeWorld, until, type World } from './helpers.ts'
+import { FAKE, FIXTURES, git, makeWorld, sh, until, type World } from './helpers.ts'
 
 const lines = (name: string) => readFileSync(join(FIXTURES, name), 'utf8').split('\n').filter(Boolean)
 
@@ -70,7 +70,7 @@ describe('a codex worker in a task', () => {
   beforeEach(async () => {
     w = makeWorld()
     mkdirSync(join(w.root, 'code', 'shop'))
-    execFileSync('/usr/bin/git', ['-C', join(w.root, 'code', 'shop'), 'init', '-q'])
+    git(join(w.root, 'code', 'shop'), 'init', '-q')
     await w.registry.scan()
     w.sup.start()
   })
@@ -78,7 +78,7 @@ describe('a codex worker in a task', () => {
 
   it('gets its rules ahead of the task, works in the project folder, and resumes the same thread', async () => {
     const bin = join(w.root, 'codex.sh')
-    writeFileSync(bin, `#!/bin/sh\npwd > ${join(w.root, 'cwd.txt')}\nexec ${FAKE} "$@"\n`, { mode: 0o755 })
+    writeFileSync(bin, `#!/bin/sh\npwd > ${sh(join(w.root, 'cwd.txt'))}\nexec ${sh(FAKE)} "$@"\n`, { mode: 0o755 })
     w.home.config.engines.codex.bin = bin
     w.home.config.engines.codex.env = { FAKE_FIXTURE: join(FIXTURES, 'codex-basic.jsonl'), FAKE_STDIN_OUT: join(w.root, 'stdin.txt'), FAKE_ARGS_OUT: join(w.root, 'args.json'), FAKE_ENV_OUT: join(w.root, 'env.json') }
     const t = w.tasks.create({ project: 'shop', title: 'Make the file', brief: 'Create made.txt.', engine: 'codex' })
@@ -93,7 +93,7 @@ describe('a codex worker in a task', () => {
     expect(stdin).toContain('You are a worker agent started by HeyBotOS')
     expect(stdin).toContain('Your task:\n\nTask: Make the file\n\nCreate made.txt.')
     const env = JSON.parse(readFileSync(join(w.root, 'env.json'), 'utf8')) as Record<string, string>
-    expect(env.PATH!.split(':')[0]).toBe(join(w.home.state, 'shims'))
+    expect(env.PATH!.split(delimiter)[0]).toBe(join(w.home.state, 'shims'))
     expect(env.ZDOTDIR).toBe(join(w.home.state, 'zdot'))
 
     w.home.config.engines.codex.env = { ...w.home.config.engines.codex.env, FAKE_FIXTURE: join(FIXTURES, 'codex-resume.jsonl') }

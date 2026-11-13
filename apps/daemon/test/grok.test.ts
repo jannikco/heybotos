@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createGrokParser } from '../src/engines/grok.ts'
-import { FIXTURES, makeWorld, until, type World } from './helpers.ts'
+import { FIXTURES, git, makeWorld, until, type World } from './helpers.ts'
 
 const lines = (name: string) => readFileSync(join(FIXTURES, name), 'utf8').split('\n').filter(Boolean)
 
@@ -46,7 +46,7 @@ describe('a grok worker in a task', () => {
   beforeEach(async () => {
     w = makeWorld()
     mkdirSync(join(w.root, 'code', 'shop'))
-    execFileSync('/usr/bin/git', ['-C', join(w.root, 'code', 'shop'), 'init', '-q'])
+    git(join(w.root, 'code', 'shop'), 'init', '-q')
     await w.registry.scan()
     w.sup.start()
   })
@@ -81,7 +81,7 @@ describe('a grok worker in a task', () => {
 
   it('does not start at all when it cannot find out which connectors to switch off', async () => {
     w.home.config.engines.grok.bin = join(w.root, 'grok-broken')
-    execFileSync('/bin/sh', ['-c', `printf '#!/bin/sh\\nif [ "$1" = mcp ]; then exit 1; fi\\nexit 0\\n' > ${join(w.root, 'grok-broken')} && chmod +x ${join(w.root, 'grok-broken')}`])
+    writeFileSync(join(w.root, 'grok-broken'), '#!/bin/sh\nif [ "$1" = mcp ]; then exit 1; fi\nexit 0\n', { mode: 0o755 })
     const t = w.tasks.create({ project: 'shop', brief: 'Anything.', engine: 'grok' })
     await until(() => w.tasks.get(t.id)!.status === 'failed')
     expect(w.tasks.get(t.id)!.summary).toMatch(/Could not ask Grok which connectors it has, so the worker was not started/)

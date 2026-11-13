@@ -3,16 +3,15 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { TaskView } from '@heybotos/protocol'
-import { FAKE, FIXTURES, makeWorld, until, variant, type World } from './helpers.ts'
+import { FAKE, FIXTURES, git, makeWorld, sh, until, variant, type World } from './helpers.ts'
 
 let w: World
 let repo: string
-const git = (dir: string, ...args: string[]) => execFileSync('/usr/bin/git', ['-C', dir, ...args], { encoding: 'utf8' }).trim()
 
 /** A fake worker that really edits files, so baselines, diffs and undo have something to bite on. */
 function scriptedWorker(script: string, fixture = join(FIXTURES, 'claude-rich.jsonl')): void {
   const bin = join(w.root, 'worker.sh')
-  writeFileSync(bin, `#!/bin/sh\n${script}\nexec ${FAKE} "$@"\n`, { mode: 0o755 })
+  writeFileSync(bin, `#!/bin/sh\n${script}\nexec ${sh(FAKE)} "$@"\n`, { mode: 0o755 })
   w.home.config.engines.claude.bin = bin
   w.home.config.engines.claude.env = { FAKE_FIXTURE: fixture }
 }

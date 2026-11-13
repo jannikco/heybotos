@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { RunView, StoredEvent } from '@heybotos/protocol'
-import { BASIC, FIXTURES, makeWorld, pidAlive, until, variant, type World } from './helpers.ts'
+import { BASIC, FIXTURES, killTree, makeWorld, pidAlive, until, variant, type World } from './helpers.ts'
 import { PASS_LINUX, PASS_WINDOWS } from '../src/engines/env.ts'
 
 let w: World
@@ -342,7 +342,7 @@ describe('daemon restart', () => {
     const run = w.sup.create({ engine: 'claude', cwd: w.root, prompt: 'p', extra: w.fake('hang') })
     await until(() => status(run.id) === 'running')
     w.sup.shutdown()
-    process.kill(-pidOf(run.id), 'SIGKILL')
+    killTree(pidOf(run.id))
     await until(() => !pidAlive(pidOf(run.id)))
     const next = w.restart()
     next.start()
