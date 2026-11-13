@@ -127,35 +127,28 @@ rm -rf "$work" "$tgz"
 echo "$(date): done"
 again
 `,
-  // %1 the installer, %2 the app's program, %3 the process to wait for. The installer itself stops
-  // whatever of HeyBotOS still runs, and installs where the app already is.
-  win32: `@echo off\r
-setlocal\r
-set n=0\r
-:wait\r
-tasklist /FI "PID eq %~3" 2>nul | find "%~3" >nul\r
-if errorlevel 1 goto go\r
-set /a n+=1\r
-if %n% GEQ 30 goto go\r
-ping -n 2 127.0.0.1 >nul\r
-goto wait\r
-:go\r
-echo %date% %time%: installing %~1 >> "%~dp0install.log"\r
-start "" /wait "%~1" /S\r
-echo %date% %time%: done >> "%~dp0install.log"\r
-if not defined HEYBOTOS_UPDATE_NO_OPEN start "" "%~2"\r
-`,
 }
 
-/** Start the script that replaces this app with the fetched file once this process has ended. */
+/**
+ * Start what replaces this app with the fetched file. On macOS and Linux that is a script which
+ * waits for this process to end. On Windows the fetched file is the installer itself: run without
+ * questions, it stops whatever of HeyBotOS still runs, installs where the app already is, and (asked
+ * to with /RELAUNCH) opens the app again.
+ */
 function startInstaller(file) {
-  const text = INSTALLERS[process.platform]
-  if (!text) throw new Error('HeyBotOS cannot update itself on this system.')
-  const script = join(dirname(file), WIN ? 'install-update.cmd' : 'install-update.sh')
-  writeFileSync(script, text, { mode: 0o755 })
-  const args = WIN ? ['/d', '/c', script, file, process.execPath, String(process.pid)] : [script, APP_PATH, file, String(process.pid)]
-  // Cut loose from this process, so closing the app does not take the script with it.
-  spawn(WIN ? process.env.ComSpec || 'cmd.exe' : '/bin/sh', args, { detached: true, stdio: 'ignore', windowsHide: true, cwd: dirname(file) }).unref()
+  // Cut loose from this process, so closing the app does not take it along.
+  const loose = { detached: true, stdio: 'ignore', windowsHide: true, cwd: dirname(file) }
+  let child
+  if (WIN) child = spawn(file, ['/S', ...(process.env.HEYBOTOS_UPDATE_NO_OPEN ? [] : ['/RELAUNCH'])], loose)
+  else {
+    const text = INSTALLERS[process.platform]
+    if (!text) throw new Error('HeyBotOS cannot update itself on this system.')
+    const script = join(dirname(file), 'install-update.sh')
+    writeFileSync(script, text, { mode: 0o755 })
+    child = spawn('/bin/sh', [script, APP_PATH, file, String(process.pid)], loose)
+  }
+  child.on('error', (e) => console.error('[heybotos] the installer could not be started:', e?.message ?? e))
+  child.unref()
 }
 
 /**

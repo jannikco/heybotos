@@ -88,6 +88,7 @@ if (makensis) {
     nsi,
     `Unicode true
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
 
 Name "HeyBotOS"
 OutFile "${out}"
@@ -143,6 +144,12 @@ Section "HeyBotOS"
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "EstimatedSize" ${kb}
+  ; Run by the app to update itself (silently, with /RELAUNCH), the installer opens the app again.
+  \${GetParameters} $R0
+  ClearErrors
+  \${GetOptions} $R0 "/RELAUNCH" $R1
+  IfErrors +2
+  Exec '"$INSTDIR\\HeyBotOS.exe"'
 SectionEnd
 
 Section "Uninstall"
