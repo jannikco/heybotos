@@ -2,14 +2,15 @@
 // PreToolUse hook and by the ssh/scp/rsync wrappers). What needs a yes becomes a card in the
 // owner's inbox; the worker is told to carry on without it and report that it is waiting; the
 // owner's decision resumes the same session.
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { ApprovalView } from '@heybotos/protocol'
 import type { Bus } from './bus.ts'
 import type { Db } from './db.ts'
-import { nodeCommand, type Home } from './home.ts'
+import type { Home } from './home.ts'
+import { scriptLine, writeCommand } from './platform.ts'
 import type { Tasks } from './tasks.ts'
 import type { RunExtra, RunRow, Supervisor } from './engines/supervisor.ts'
 import { decide, type GateConfig } from './policy/gate.ts'
@@ -50,6 +51,7 @@ export class Approvals {
   private tasks: Tasks
   private shimDir: string
   private zdotDir: string
+  private bashEnv: string
   cfg: GateConfig
   /** Where workers reach the daemon; set once the port is known. */
   url: string
@@ -64,6 +66,7 @@ export class Approvals {
     this.url = `http://127.0.0.1:${home.config.port}`
     this.shimDir = join(home.state, 'shims')
     this.zdotDir = join(home.state, 'zdot')
+    this.bashEnv = join(home.state, 'zdot', 'bash-env.sh')
     this.writeShims()
     this.writeShellStartup()
     supervisor.decorate = (run, extra) => this.decorate(run, extra)
@@ -84,18 +87,14 @@ export class Approvals {
   /** Wrappers named ssh, scp, … that sit first on a worker's PATH and ask the gate before the real program runs. */
   private writeShims(): void {
     mkdirSync(this.shimDir, { recursive: true })
-    for (const name of SHIMMED) {
-      const path = join(this.shimDir, name)
-      writeFileSync(path, `#!/bin/sh\nexec env ${nodeCommand(join(HOOKS, 'gate-shim.mjs'))} ${name} "$@"\n`)
-      chmodSync(path, 0o755)
-    }
+    for (const name of SHIMMED) writeCommand(this.shimDir, name, join(HOOKS, 'gate-shim.mjs'), [name])
   }
 
   /**
-   * Codex (and many scripts) run commands in a login shell, and a login shell on macOS rebuilds PATH
-   * with the system folders first, which would put the real ssh ahead of the wrappers. Workers
-   * therefore get their own zsh start-up folder: it loads the owner's usual start-up files and then
-   * puts the wrappers back in front.
+   * Codex (and many scripts) run commands in a login shell, and a login shell rebuilds PATH with the
+   * system folders first, which would put the real ssh ahead of the wrappers. Workers therefore get
+   * shell start-up files of their own that put the wrappers back in front: for zsh a start-up folder
+   * that first loads the owner's usual files, for bash a file it reads after the login files.
    */
   private writeShellStartup(): void {
     mkdirSync(this.zdotDir, { recursive: true })
@@ -103,6 +102,7 @@ export class Approvals {
     for (const name of ['.zshenv', '.zprofile', '.zshrc', '.zlogin']) {
       writeFileSync(join(this.zdotDir, name), `[ -f "$HOME/${name}" ] && . "$HOME/${name}"\n${name === '.zshenv' ? '' : front}`)
     }
+    writeFileSync(this.bashEnv, `case ":$PATH:" in ":$HEYBOTOS_SHIM_DIR:"*) ;; *) ${front.trim()} ;; esac\n`)
   }
 
   /** A token that lets one run ask the gate about itself, and nothing else. */
@@ -119,7 +119,7 @@ export class Approvals {
   private decorate(run: RunRow, extra: RunExtra): RunExtra {
     const hook = {
       type: 'command',
-      command: nodeCommand(join(HOOKS, 'gate-hook.mjs')),
+      command: scriptLine(join(HOOKS, 'gate-hook.mjs'), this.home.state, 'gate-hook'),
       timeout: 20,
       // If the hook cannot run or answer, the call does not happen.
       onFailure: 'block',
@@ -136,6 +136,7 @@ export class Approvals {
         HEYBOTOS_GATE_TOKEN: this.token(run.id),
         HEYBOTOS_SHIM_DIR: this.shimDir,
         ZDOTDIR: this.zdotDir,
+        BASH_ENV: this.bashEnv,
         // The owner's SSH agent, so their keys work for the team. The wrappers still decide which servers.
         ...(this.cfg.sshAgent && process.env.SSH_AUTH_SOCK ? { SSH_AUTH_SOCK: process.env.SSH_AUTH_SOCK } : {}),
       },

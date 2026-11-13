@@ -118,7 +118,7 @@ export function createCodexParser(): LineParser {
           }
           case 'file_change': {
             const changes: Json[] = Array.isArray(item.changes) ? item.changes : []
-            const names = changes.map((c) => String(c.path ?? '').split('/').pop()).filter(Boolean)
+            const names = changes.map((c) => String(c.path ?? '').split(/[\\/]/).pop()).filter(Boolean)
             startTool(id, 'Edit', names.length ? `Editing ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` and ${names.length - 3} more` : ''}` : 'Editing files', { files: changes.map((c) => `${c.kind ?? 'change'} ${c.path}`) })
             if (done) push('tool_result', { id, name: 'Edit', isError: item.status === 'failed', text: changes.map((c) => `${c.kind ?? 'changed'} ${c.path}`).join('\n') })
             break

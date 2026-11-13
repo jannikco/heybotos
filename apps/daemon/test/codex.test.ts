@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildCodexArgs, createCodexParser, unwrapCommand } from '../src/engines/codex.ts'
@@ -105,14 +105,25 @@ describe('a codex worker in a task', () => {
     expect(w.tasks.get(t.id)!.summary).toBe('The file I created was made.txt.')
   })
 
-  it('keeps the gate wrappers in front even in a login shell, which is how Codex runs commands', () => {
+  // A login shell rebuilds PATH from the system's and the owner's start-up files, which would put the
+  // real ssh first again. Checked for each shell this computer has; Windows has no login shell.
+  it.skipIf(process.platform === 'win32')('keeps the gate wrappers in front even in a login shell, which is how Codex runs commands', () => {
     mkdirSync(join(w.root, 'bin'))
     writeFileSync(join(w.root, 'bin', 'ssh'), '#!/bin/sh\necho real\n', { mode: 0o755 })
     const shims = join(w.home.state, 'shims')
-    const found = execFileSync('/bin/zsh', ['-lc', 'command -v ssh'], {
-      encoding: 'utf8',
-      env: { PATH: `${shims}:${join(w.root, 'bin')}:/usr/bin:/bin`, HOME: process.env.HOME!, ZDOTDIR: join(w.home.state, 'zdot'), HEYBOTOS_SHIM_DIR: shims },
-    }).trim()
-    expect(found).toBe(join(shims, 'ssh'))
+    const zdot = join(w.home.state, 'zdot')
+    // The login files of this account put a folder of their own first, as many do.
+    const fakeHome = join(w.root, 'home')
+    mkdirSync(fakeHome)
+    for (const f of ['.zprofile', '.bash_profile']) writeFileSync(join(fakeHome, f), `export PATH="${join(w.root, 'bin')}:$PATH"\n`)
+    const shells = ['/bin/zsh', '/usr/bin/zsh', '/bin/bash', '/usr/bin/bash'].filter((s, i, all) => existsSync(s) && !all.slice(0, i).some((t) => existsSync(t) && t.split('/').pop() === s.split('/').pop()))
+    expect(shells.length).toBeGreaterThan(0)
+    for (const shell of shells) {
+      const found = execFileSync(shell, ['-lc', 'command -v ssh'], {
+        encoding: 'utf8',
+        env: { PATH: `${shims}:${join(w.root, 'bin')}:/usr/bin:/bin`, HOME: fakeHome, ZDOTDIR: zdot, BASH_ENV: join(zdot, 'bash-env.sh'), HEYBOTOS_SHIM_DIR: shims },
+      }).trim()
+      expect(found, shell).toBe(join(shims, 'ssh'))
+    }
   })
 })

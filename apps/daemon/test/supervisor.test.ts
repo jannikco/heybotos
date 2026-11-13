@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { RunView, StoredEvent } from '@heybotos/protocol'
 import { BASIC, FIXTURES, makeWorld, pidAlive, until, variant, type World } from './helpers.ts'
+import { PASS_LINUX, PASS_WINDOWS } from '../src/engines/env.ts'
 
 let w: World
 beforeEach(() => {
@@ -81,7 +82,7 @@ describe('a normal run', () => {
     expect(env.HEYBOTOS_RUN_ID).toBe(run.id)
     expect(env.TERM).toBe('dumb')
     expect(env.HOME).toBeTruthy()
-    const allowed = ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TERM', 'CI', 'NO_COLOR', 'HEYBOTOS_RUN_ID', 'HEYBOTOS_GATE_URL', 'HEYBOTOS_GATE_TOKEN', 'HEYBOTOS_SHIM_DIR', 'ZDOTDIR', 'SSH_AUTH_SOCK', '__CF_USER_TEXT_ENCODING']
+    const allowed = ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TERM', 'CI', 'NO_COLOR', 'HEYBOTOS_RUN_ID', 'HEYBOTOS_GATE_URL', 'HEYBOTOS_GATE_TOKEN', 'HEYBOTOS_SHIM_DIR', 'ZDOTDIR', 'BASH_ENV', 'SSH_AUTH_SOCK', '__CF_USER_TEXT_ENCODING', ...PASS_LINUX, ...PASS_WINDOWS, 'ELECTRON_RUN_AS_NODE']
     expect(Object.keys(env).filter((k) => !allowed.includes(k) && !k.startsWith('FAKE_'))).toEqual([])
   })
 })

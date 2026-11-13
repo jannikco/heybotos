@@ -1,7 +1,7 @@
 // Settings the owner changes from the app (or asks the manager to change). Each change is checked,
 // written to the matching file in ~/heybotos/config, and applied to the running daemon at once.
 import { writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import type { Engine, SettingsPatch, SettingsView, TaskKind } from '@heybotos/protocol'
 import type { Approvals } from './approvals.ts'
 import type { ConnectorRegistry } from './connect/registry.ts'
@@ -78,7 +78,7 @@ export class Settings {
       if (g.projectRoots !== undefined) {
         const roots = list(g.projectRoots, 'Project folders', 20)
         if (!roots.length) throw new Error('Name at least one folder that holds your projects.')
-        for (const r of roots) if (!r.startsWith('/') && !r.startsWith('~')) throw new Error(`"${r}" is not a full folder path. Start it with / or ~.`)
+        for (const r of roots) if (!isAbsolute(r) && !r.startsWith('~')) throw new Error(`"${r}" is not a full folder path. Start it with ${process.platform === 'win32' ? 'a drive letter (C:\\…)' : '/'} or ~.`)
         rescan = JSON.stringify(roots) !== JSON.stringify(c.projectRoots)
         next.config.projectRoots = roots
       }

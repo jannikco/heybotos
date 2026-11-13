@@ -1,0 +1,91 @@
+name: Packages
+
+# Builds the Linux and Windows apps, runs the service's tests on the app's own runtime, and starts
+# each app to see that it works. Called by the check (to verify) and by a release (to publish).
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release to add the packages to. Empty builds and checks them only.
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, system: linux, arch: x64 }
+          - { os: ubuntu-24.04-arm, system: linux, arch: arm64 }
+          - { os: windows-latest, system: win, arch: x64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download Electron
+        run: node node_modules/electron/install.js
+        working-directory: apps/desktop
+      - run: pnpm build
+      - name: Run the service's tests on the app's own runtime
+        run: node apps/desktop/scripts/test-on-runtime.mjs
+
+      - name: Tools for the Linux packages
+        if: matrix.system == 'linux'
+        run: command -v mksquashfs >/dev/null || (sudo apt-get update -q && sudo apt-get install -y -q squashfs-tools)
+      - name: Tools for the Windows installer
+        if: matrix.system == 'win'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
+
+      - name: Build the packages
+        run: node apps/desktop/scripts/make-${{ matrix.system }}.mjs --arch ${{ matrix.arch }}
+
+      - name: Start the app and check it (Linux)
+        if: matrix.system == 'linux'
+        run: xvfb-run -a node apps/desktop/scripts/smoke-app.mjs --app apps/desktop/dist/linux-${{ matrix.arch }}/HeyBotOS
+      - name: Install with the installer, start the app and check it, uninstall (Windows)
+        if: matrix.system == 'win'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem apps/desktop/dist/*-setup.exe | Select-Object -First 1
+          $where = "$env:LOCALAPPDATA\Programs\HeyBotOS"
+          Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait
+          if (-not (Test-Path "$where\HeyBotOS.exe")) { throw "The installer did not put HeyBotOS in $where" }
+          node apps/desktop/scripts/smoke-app.mjs --app "$where"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Start-Process -FilePath "$where\Uninstall HeyBotOS.exe" -ArgumentList '/S', "_?=$where" -Wait
+          if (Test-Path "$where\HeyBotOS.exe") { throw "The uninstaller left HeyBotOS.exe behind" }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: heybotos-${{ matrix.system }}-${{ matrix.arch }}
+          path: |
+            apps/desktop/dist/*.deb
+            apps/desktop/dist/*.AppImage
+            apps/desktop/dist/*.tar.gz
+            apps/desktop/dist/*-setup.exe
+            apps/desktop/dist/*.zip
+            apps/desktop/dist/smoke-*.png
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Add the packages to the release
+        if: inputs.tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          gh release upload "${{ inputs.tag }}" apps/desktop/dist/*.deb apps/desktop/dist/*.AppImage apps/desktop/dist/*.tar.gz apps/desktop/dist/*-setup.exe apps/desktop/dist/*-win-*.zip --clobber

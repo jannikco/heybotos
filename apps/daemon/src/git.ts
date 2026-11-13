@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import type { FileChange } from '@heybotos/protocol'
+import { GIT } from './platform.ts'
 
-const GIT = '/usr/bin/git'
 const IDENTITY = {
   GIT_AUTHOR_NAME: 'HeyBotOS',
   GIT_AUTHOR_EMAIL: 'heybotos@localhost',

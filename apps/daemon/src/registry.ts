@@ -7,6 +7,7 @@ import { basename, isAbsolute, join, resolve } from 'node:path'
 import type { ProjectView, TaskStage } from '@heybotos/protocol'
 import type { Db } from './db.ts'
 import type { Home } from './home.ts'
+import { GIT } from './platform.ts'
 
 interface ProjectRow {
   slug: string
@@ -52,7 +53,7 @@ const SKIP = new Set(['node_modules'])
 
 function gitOut(dir: string, args: string[], timeout = 10_000): Promise<string | null> {
   return new Promise((done) => {
-    execFile('/usr/bin/git', ['-C', dir, ...args], { timeout, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' } }, (err, stdout) =>
+    execFile(GIT, ['-C', dir, ...args], { windowsHide: true, timeout, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' } }, (err, stdout) =>
       done(err ? null : stdout.trim()),
     )
   })

@@ -97,12 +97,15 @@ const SSH_TAKES_VALUE = new Set('BbcDEeFIiJLlmOoPpQRSWw'.split(''))
 const SHELL_WORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '{', '!'])
 const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'fish'])
 
+/** A program's name without its folder, and without the ending Windows gives programs (ssh.exe is ssh). */
+const bare = (word: string) => word.split(/[\\/]/).pop()!.replace(/\.(exe|cmd|bat)$/i, '')
+
 function program(words: string[]): { name: string; args: string[] } | null {
   let i = 0
   while (i < words.length) {
     const w = words[i]!
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(w) || SHELL_WORDS.has(w)) i++
-    else if (WRAPPERS.has(w.split('/').pop()!)) {
+    else if (WRAPPERS.has(bare(w))) {
       i++
       // "timeout 30 cmd", "nice -n 5 cmd": skip the wrapper's own options and numbers.
       while (i < words.length && (/^-/.test(words[i]!) || /^\d+[smhd]?$/.test(words[i]!))) i++
@@ -112,7 +115,7 @@ function program(words: string[]): { name: string; args: string[] } | null {
     } else break
   }
   if (i >= words.length) return null
-  return { name: words[i]!.split('/').pop()!, args: words.slice(i + 1) }
+  return { name: bare(words[i]!), args: words.slice(i + 1) }
 }
 
 function cleanHost(target: string): string {

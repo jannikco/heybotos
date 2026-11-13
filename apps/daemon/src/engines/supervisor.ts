@@ -7,7 +7,7 @@
 // - each worker is its own process group, so stopping it stops everything it started;
 // - there is exactly one owner of timeouts (this file);
 // - success is read from the CLI's own result line, never from the exit code.
-import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomBytes, randomUUID } from 'node:crypto'
@@ -16,6 +16,7 @@ import type { Db } from '../db.ts'
 import type { Bus } from '../bus.ts'
 import { findBin, type Home } from '../home.ts'
 import { childEnv } from './env.ts'
+import { alive, holdAwake, processMark, signalTree, startProgram } from '../platform.ts'
 import { oneLine } from './redact.ts'
 import { REPORT_SCHEMA } from './report.ts'
 import type { EngineAdapter, FinalResult, LineParser, SpawnSpec } from './types.ts'
@@ -149,35 +150,6 @@ export function toView(r: RunRow): RunView {
   }
 }
 
-function alive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (e) {
-    return (e as NodeJS.ErrnoException).code === 'EPERM'
-  }
-}
-
-/** Start time as the OS reports it; pid + start time identifies a process across daemon restarts. */
-function pidStarted(pid: number): string | null {
-  try {
-    return execFileSync('/bin/ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8' }).trim() || null
-  } catch {
-    return null
-  }
-}
-
-function signalGroup(pid: number, sig: NodeJS.Signals): void {
-  try {
-    process.kill(-pid, sig)
-  } catch {
-    try {
-      process.kill(pid, sig)
-    } catch {
-      /* already gone */
-    }
-  }
-}
 
 export class Supervisor {
   private active = new Map<string, ActiveRun>()
@@ -339,7 +311,7 @@ export class Supervisor {
       a.stopStage = 1
       a.stopAt = Date.now() + this.home.config.stopGraceMs
       // INT first: the CLI then writes a result line and saves the session. TERM and KILL follow.
-      signalGroup(a.pid, 'SIGINT')
+      signalTree(a.pid, 'SIGINT')
       this.publish(id)
     }
     return this.view(id)!
@@ -384,7 +356,7 @@ export class Supervisor {
         fatal: null,
         limited: false,
       }
-      const same = r.pid !== null && alive(r.pid) && pidStarted(r.pid) === r.pid_started
+      const same = r.pid !== null && alive(r.pid) && processMark(r.pid) === r.pid_started
       if (same) {
         a.exited = false
         if (r.status === 'stopping') {
@@ -497,7 +469,7 @@ export class Supervisor {
       const env = childEnv({ runId: r.id, pathPrefix: extra.pathPrefix, extra: { ...cfg.env, ...(extra.env ?? {}) } })
       spec.bin = bin
       spec.env = env
-      child = spawn(bin, adapter.buildArgs(spec), {
+      child = startProgram(bin, adapter.buildArgs(spec), {
         cwd: r.cwd,
         env,
         stdio: ['pipe', out, err],
@@ -549,7 +521,7 @@ export class Supervisor {
     this.db.run(
       `update runs set status = 'starting', pid = ?, pid_started = ?, stdout_path = ?, started_at = ? where id = ?`,
       child.pid,
-      pidStarted(child.pid),
+      processMark(child.pid),
       stdoutPath,
       now,
       r.id,
@@ -596,14 +568,14 @@ export class Supervisor {
       if (a.fatal && a.stopStage < 3) {
         // Billing protection: no grace period.
         a.stopStage = 3
-        signalGroup(a.pid, 'SIGKILL')
+        signalTree(a.pid, 'SIGKILL')
         continue
       }
       // The CLI printed its result but is still around (a lingering child, usually).
       if (a.final && a.stopStage === 0 && now - a.finalAt > 10_000) {
         a.stopStage = 2
         a.stopAt = now + stopGraceMs
-        signalGroup(a.pid, 'SIGTERM')
+        signalTree(a.pid, 'SIGTERM')
       }
       if (a.stopStage === 0 && !a.final) {
         if (now - a.lastOutputAt > watchdog.silentSeconds * 1000) {
@@ -615,7 +587,7 @@ export class Supervisor {
       if (a.stopStage > 0 && a.stopStage < 3 && now >= a.stopAt) {
         a.stopStage++
         a.stopAt = now + stopGraceMs
-        signalGroup(a.pid, a.stopStage === 2 ? 'SIGTERM' : 'SIGKILL')
+        signalTree(a.pid, a.stopStage === 2 ? 'SIGTERM' : 'SIGKILL')
       }
     }
     this.pump()
@@ -794,14 +766,14 @@ export class Supervisor {
 
   /** Hold a no-idle-sleep assertion while anything is running, tied to this daemon's lifetime. */
   private keepAwake(): void {
-    if (!this.home.config.keepAwake || process.platform !== 'darwin') return
+    if (!this.home.config.keepAwake) return
     if (this.active.size > 0 && !this.awake) {
       try {
-        this.awake = spawn('/usr/bin/caffeinate', ['-i', '-w', String(process.pid)], { stdio: 'ignore' })
-        this.awake.once('exit', () => {
+        this.awake = holdAwake()
+        this.awake?.once('exit', () => {
           this.awake = null
         })
-        this.awake.once('error', () => {
+        this.awake?.once('error', () => {
           this.awake = null
         })
       } catch {

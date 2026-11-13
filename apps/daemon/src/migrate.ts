@@ -7,6 +7,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeF
 import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import type { Db } from './db.ts'
+import { GIT } from './platform.ts'
 
 const OLD_NAME = 'botos'
 const OLD_LABEL = 'com.botos.daemon'
@@ -101,7 +102,7 @@ export function finishMove(root: string, db: Db, log: (line: string) => void = c
   for (const t of db.all<{ cwd: string; path: string }>(`select t.cwd, p.path from tasks t join projects p on p.slug = t.project_slug where t.isolation = 'worktree' and t.cwd like ?`, `${to}/%`)) {
     if (!existsSync(t.cwd)) continue
     try {
-      execFileSync('/usr/bin/git', ['-C', t.path, 'worktree', 'repair', t.cwd], { stdio: 'ignore', timeout: 20_000 })
+      execFileSync(GIT, ['-C', t.path, 'worktree', 'repair', t.cwd], { stdio: 'ignore', timeout: 20_000 })
     } catch {
       /* the copy stays where it is; git says so the next time it is used */
     }

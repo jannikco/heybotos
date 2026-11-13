@@ -1,13 +1,13 @@
 // Which models each engine offers on the owner's plans, asked of the CLIs themselves, so nothing
 // here goes stale when a plan gains a model. Used by the pickers in the app.
-import { execFile } from 'node:child_process'
 import type { Engine, EngineModels } from '@heybotos/protocol'
 import { findBin, type Home } from './home.ts'
 import { childEnv } from './engines/env.ts'
+import { runProgram } from './platform.ts'
 
 function run(bin: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile(bin, args, { env: childEnv({ runId: 'models' }), timeout: 20_000, maxBuffer: 32 * 1024 * 1024 }, (err, stdout) => resolve(err ? null : stdout))
+    runProgram(bin, args, { env: childEnv({ runId: 'models' }), timeout: 20_000, maxBuffer: 32 * 1024 * 1024 }, (err, stdout) => resolve(err ? null : stdout))
   })
 }
 

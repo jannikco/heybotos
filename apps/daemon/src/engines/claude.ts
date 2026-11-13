@@ -39,7 +39,7 @@ export function buildClaudeArgs(spec: SpawnSpec): string[] {
 
 /** A short human line for "what is it doing right now". */
 export function describeTool(name: string, input: Json): string {
-  const base = (p: unknown) => String(p ?? '').split('/').pop() || 'a file'
+  const base = (p: unknown) => String(p ?? '').split(/[\\/]/).pop() || 'a file'
   switch (name) {
     case 'Bash':
       return oneLine(input.description || input.command, 90)

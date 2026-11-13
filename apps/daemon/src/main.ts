@@ -1,5 +1,5 @@
 // heybotosd: the HeyBotOS daemon. Run with `pnpm daemon`.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serve } from '@hono/node-server'
@@ -72,7 +72,10 @@ void registry
   .then((n) => console.log(`  Projects      ${n} folders found in ${home.config.projectRoots.join(', ')}`))
   .catch((e) => console.error('[registry] scan failed:', e))
 
+// Where no service manager knows this process, the terminal helper finds it by this number.
+const pidFile = join(home.state, 'daemon.pid')
 const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: home.config.port }, () => {
+  writeFileSync(pidFile, String(process.pid))
   console.log(`HeyBotOS ${version}${stage ? ` ${stage}` : ''} is running.`)
   console.log(`  Data folder   ${home.root}`)
   console.log(`  Workers       ${supervisor.activeCount()} picked up from before, up to ${home.config.maxWorkers} at a time`)
@@ -97,6 +100,7 @@ function stop(): void {
   supervisor.shutdown()
   server.close()
   db.close()
+  rmSync(pidFile, { force: true })
   process.exit(0)
 }
 process.on('SIGINT', stop)

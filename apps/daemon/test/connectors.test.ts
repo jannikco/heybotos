@@ -40,7 +40,7 @@ afterEach(async () => {
 
 /** A connector that is a program on this machine: the fake shop system. */
 function addShop(): void {
-  w.connectors.save({ name: 'shop', command: process.execPath, args: [FAKE_CONNECTOR], env: { SHOP_KEY: 'shop-secret', FAKE_CONNECTOR_LOG: join(w.root, 'shop-calls.txt') } })
+  w.connectors.save({ name: 'shop', command: process.execPath, args: [FAKE_CONNECTOR], env: { ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}), SHOP_KEY: 'shop-secret', FAKE_CONNECTOR_LOG: join(w.root, 'shop-calls.txt') } })
 }
 
 /** One MCP request to the gateway, the way a worker's CLI sends it. */

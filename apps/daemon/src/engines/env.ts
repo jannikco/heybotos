@@ -4,8 +4,13 @@
 import { homedir, tmpdir, userInfo } from 'node:os'
 import { delimiter } from 'node:path'
 import { workerPath } from '../home.ts'
+import { userShell, WIN } from '../platform.ts'
 
 const PASS_THROUGH = ['LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TMPDIR', 'SHELL', '__CF_USER_TEXT_ENCODING']
+/** Linux: where the session keeps its settings and how programs reach the desktop (a browser for a sign-in, the keyring). */
+export const PASS_LINUX = ['XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME', 'XDG_RUNTIME_DIR', 'DBUS_SESSION_BUS_ADDRESS', 'DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY']
+/** Windows: programs do not start without knowing where the system and the owner's folders are. */
+export const PASS_WINDOWS = ['SystemRoot', 'SystemDrive', 'windir', 'ComSpec', 'PATHEXT', 'TEMP', 'TMP', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'CommonProgramFiles', 'USERNAME', 'USERDOMAIN', 'COMPUTERNAME', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE', 'OS']
 
 export interface ChildEnvOptions {
   runId: string
@@ -20,7 +25,7 @@ export function childEnv(opts: ChildEnvOptions): Record<string, string> {
     HOME: homedir(),
     USER: userInfo().username,
     LOGNAME: userInfo().username,
-    SHELL: '/bin/zsh',
+    ...(WIN ? {} : { SHELL: userShell() }),
     TMPDIR: tmpdir(),
     LANG: 'en_US.UTF-8',
     TERM: 'dumb',
@@ -28,7 +33,7 @@ export function childEnv(opts: ChildEnvOptions): Record<string, string> {
     NO_COLOR: '1',
     HEYBOTOS_RUN_ID: opts.runId,
   }
-  for (const k of PASS_THROUGH) {
+  for (const k of [...PASS_THROUGH, ...(WIN ? PASS_WINDOWS : process.platform === 'linux' ? PASS_LINUX : [])]) {
     const v = process.env[k]
     if (v) env[k] = v
   }

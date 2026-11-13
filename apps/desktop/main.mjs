@@ -1,7 +1,8 @@
-// HeyBotOS for macOS. A native shell around the local HeyBotOS service: its own window, a menu-bar item
-// that shows who is working, a global shortcut to ask the manager, native notifications and a Dock
-// badge for what is waiting. The installed app carries the service and sets it up as a background
-// item of its own, so it keeps running without this window.
+// HeyBotOS on the desktop (macOS, Linux, Windows). A native shell around the local HeyBotOS service:
+// its own window, an item in the menu bar or notification area that shows who is working, a global
+// shortcut to ask the manager, native notifications and (on the Mac) a Dock badge for what is
+// waiting. The installed app carries the service and sets it up as a background item of its own, so
+// it keeps running without this window.
 import { app, BrowserWindow, Menu, Notification, Tray, dialog, globalShortcut, ipcMain, nativeImage, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -10,6 +11,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
+const MAC = process.platform === 'darwin'
+const WIN = process.platform === 'win32'
 const HOME = process.env.HEYBOTOS_HOME || join(homedir(), 'heybotos')
 const SHORTCUT = 'Alt+Shift+Space'
 const PARTITION = 'persist:heybotos'
@@ -68,7 +71,7 @@ async function ensureService() {
     return r.ok && (await alive())
   }
   if (await alive()) return true
-  await new Promise((done) => execFile('/bin/launchctl', ['kickstart', `gui/${userInfo().uid}/com.heybotos.daemon`], () => done(null)))
+  if (MAC) await new Promise((done) => execFile('/bin/launchctl', ['kickstart', `gui/${userInfo().uid}/com.heybotos.daemon`], () => done(null)))
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 300))
     ;({ base, secret } = service())
@@ -138,8 +141,9 @@ function createWindow() {
     minHeight: 620,
     show: false,
     backgroundColor: '#0a102a',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 18 },
+    // On the Mac the page itself is the title bar, with the window buttons laid over it. Elsewhere the
+    // window keeps the system's own frame, with the menu tucked away until Alt is pressed.
+    ...(MAC ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 18 } } : { autoHideMenuBar: true, icon: join(here, 'assets', 'icon.png') }),
     webPreferences: { preload: join(here, 'preload.cjs'), partition: PARTITION, contextIsolation: true, sandbox: true, spellcheck: true },
   })
   guard(win)
@@ -169,7 +173,7 @@ function createWindow() {
   }
   win.on('resized', remember)
   win.on('moved', remember)
-  // Closing the window keeps the app (and its menu-bar item) alive, as Mac apps do.
+  // Closing the window keeps the app (and its menu-bar or notification-area item) alive.
   win.on('close', (e) => {
     if (!quitting) {
       e.preventDefault()
@@ -222,7 +226,7 @@ ipcMain.on('quick-done', () => {
   go('/')
 })
 ipcMain.on('quick-cancel', () => quick?.hide())
-// Settings → Project folders: the Mac's own chooser, folders only. Only the path goes back.
+// Settings → Project folders: the system's own chooser, folders only. Only the path goes back.
 ipcMain.handle('pick-folder', async (e) => {
   const owner = BrowserWindow.fromWebContents(e.sender)
   const options = { title: 'Choose a folder that holds projects', buttonLabel: 'Add folder', properties: ['openDirectory', 'createDirectory'] }
@@ -251,7 +255,8 @@ function refresh() {
   const waiting = waitingForOwner()
   app.dock?.setBadge(waiting ? String(waiting) : '')
   if (!tray) return
-  tray.setTitle(w.length ? ` ${w.length}` : '', { fontType: 'monospacedDigit' })
+  // Only the Mac's menu bar has room for a number beside the icon.
+  if (MAC) tray.setTitle(w.length ? ` ${w.length}` : '', { fontType: 'monospacedDigit' })
   tray.setToolTip(world.connected ? `HeyBotOS: ${w.length} working${waiting ? `, ${waiting} waiting for you` : ''}` : 'HeyBotOS: not connected to the service')
   const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
   tray.setContextMenu(
@@ -264,7 +269,7 @@ function refresh() {
       ...w.slice(0, 8).map((r) => ({ label: `${clip(r.title, 38)}${r.activity ? `  –  ${clip(r.activity, 34)}` : ''}`, click: () => go(`/agents/${r.id}`) })),
       ...(w.length > 8 ? [{ label: `and ${w.length - 8} more`, click: () => go('/agents') }] : []),
       { type: 'separator' },
-      { label: 'Quit HeyBotOS', accelerator: 'Command+Q', click: () => app.quit() },
+      { label: 'Quit HeyBotOS', accelerator: 'CommandOrControl+Q', click: () => app.quit() },
     ]),
   )
 }
@@ -352,19 +357,30 @@ const SECTIONS = [
 ]
 
 function appMenu() {
+  const settings = { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => go('/settings') }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      { label: 'HeyBotOS', submenu: [{ role: 'about' }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: () => go('/settings') }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
-      { label: 'File', submenu: [{ label: 'New Task…', accelerator: 'Command+N', click: () => (go(win?.webContents.getURL().replace(base, '') || '/'), win?.webContents.send('command', 'new-task')) }, { label: 'Ask…', accelerator: SHORTCUT, click: toggleQuick }, { type: 'separator' }, { role: 'close' }] },
+      // The Mac has a menu of the app's own; elsewhere Settings and Quit live in the File menu.
+      ...(MAC ? [{ label: 'HeyBotOS', submenu: [{ role: 'about' }, { type: 'separator' }, settings, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] }] : []),
+      { label: 'File', submenu: [{ label: 'New Task…', accelerator: 'CommandOrControl+N', click: () => (go(win?.webContents.getURL().replace(base, '') || '/'), win?.webContents.send('command', 'new-task')) }, { label: 'Ask…', accelerator: SHORTCUT, click: toggleQuick }, { type: 'separator' }, ...(MAC ? [] : [settings, { type: 'separator' }]), { role: 'close' }, ...(MAC ? [] : [{ label: 'Quit HeyBotOS', accelerator: 'CommandOrControl+Q', click: () => app.quit() }])] },
       { role: 'editMenu' },
-      { label: 'Go', submenu: [...SECTIONS.map(([label, path, key]) => ({ label, accelerator: `Command+${key}`, click: () => go(path) })), { type: 'separator' }, { label: 'Find or Run…', accelerator: 'Command+K', click: () => (win?.show(), win?.webContents.send('command', 'palette')) }] },
+      { label: 'Go', submenu: [...SECTIONS.map(([label, path, key]) => ({ label, accelerator: `CommandOrControl+${key}`, click: () => go(path) })), { type: 'separator' }, { label: 'Find or Run…', accelerator: 'CommandOrControl+K', click: () => (win?.show(), win?.webContents.send('command', 'palette')) }] },
       { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
       { role: 'windowMenu' },
     ]),
   )
 }
 
-if (!app.requestSingleInstanceLock()) app.quit()
+// Windows shows a notification only for an app that has said who it is.
+if (WIN) app.setAppUserModelId('com.heybotos.app')
+
+if (process.argv.includes('--service')) {
+  // Started at sign-in (Windows): bring the background service up and leave again, without a window.
+  void app.whenReady().then(async () => {
+    if (CARRIES_SERVICE) await cli(['ensure'])
+    app.exit(0)
+  })
+} else if (!app.requestSingleInstanceLock()) app.quit()
 else {
   app.on('second-instance', () => go('/'))
   app.on('before-quit', () => (quitting = true))
@@ -377,8 +393,10 @@ else {
     app.setName('HeyBotOS')
     appMenu()
     createWindow()
-    tray = new Tray(nativeImage.createFromPath(join(here, 'assets', 'trayTemplate.png')))
-    tray.on('click', () => tray.popUpContextMenu())
+    // The Mac's menu bar takes a one-colour image and tints it; the others show the mark in colour.
+    tray = new Tray(nativeImage.createFromPath(join(here, 'assets', MAC ? 'trayTemplate.png' : WIN ? 'tray.png' : 'tray-large.png')))
+    if (MAC) tray.on('click', () => tray.popUpContextMenu())
+    else tray.on('click', () => go('/'))
     refresh()
     globalShortcut.register(SHORTCUT, toggleQuick)
     void listen()

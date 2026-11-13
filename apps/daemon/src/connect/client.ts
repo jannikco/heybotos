@@ -1,7 +1,8 @@
 // Talking to a connector (an MCP server) from the daemon: either a program on this machine
 // (stdio) or a web address (HTTP). The daemon holds the credentials; workers never see them.
-import { type ChildProcess, spawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
 import { childEnv } from '../engines/env.ts'
+import { startProgram } from '../platform.ts'
 
 export interface ToolInfo {
   name: string
@@ -88,7 +89,7 @@ export class StdioClient extends Client {
 
   private proc(): ChildProcess {
     if (this.child && this.child.exitCode === null) return this.child
-    const child = spawn(this.def.command!, this.def.args ?? [], { env: childEnv({ runId: `connector:${this.def.name}`, extra: this.def.env ?? {} }), stdio: ['pipe', 'pipe', 'ignore'] })
+    const child = startProgram(this.def.command!, this.def.args ?? [], { env: childEnv({ runId: `connector:${this.def.name}`, extra: this.def.env ?? {} }), stdio: ['pipe', 'pipe', 'ignore'] })
     child.stdout!.setEncoding('utf8')
     child.stdout!.on('data', (chunk: string) => {
       this.buffer += chunk
