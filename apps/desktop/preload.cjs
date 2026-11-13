@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('heybotosDesktop', {
   onCommand: (fn) => ipcRenderer.on('command', (_e, name) => fn(name)),
   /** Let the owner point at a folder; resolves to its path, or null when they cancel. */
   pickFolder: () => ipcRenderer.invoke('pick-folder'),
+  /** Install the newer version: the app fetches it if needed, closes, replaces itself and opens again. Resolves to { ok, problem }. */
+  installUpdate: () => ipcRenderer.invoke('install-update'),
 })
 
 window.addEventListener('DOMContentLoaded', () => {

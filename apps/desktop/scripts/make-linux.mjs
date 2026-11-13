@@ -1,7 +1,7 @@
 // Builds HeyBotOS for Linux, on Linux: the app as a folder, and from it a .deb (Debian, Ubuntu, Mint),
 // an AppImage (any distribution) and a .tar.gz.
 //
-//   node scripts/make-linux.mjs [--arch x64|arm64]
+//   node scripts/make-linux.mjs [--arch x64|arm64] [--only tar] [--as <version> --out <folder>]
 //
 // Needs dpkg-deb for the .deb and mksquashfs (squashfs-tools) for the AppImage; a package whose tool
 // is missing is skipped with a note. Nothing is uploaded.
@@ -12,7 +12,7 @@
 import { execFileSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { desktop, electronDist, fillResources, tool } from './payload.mjs'
+import { desktop, electronDist, fillResources, flag, OUT, tool } from './payload.mjs'
 
 if (process.platform !== 'linux') throw new Error('The Linux packages are built on Linux (the GitHub release workflow does it).')
 const arch = process.argv.includes('--arch') ? process.argv[process.argv.indexOf('--arch') + 1] : process.arch
@@ -41,7 +41,7 @@ const script = (file, text) => {
 }
 
 // ── the app as a folder ──
-const work = join(desktop, 'dist', `linux-${arch}`)
+const work = join(OUT, `linux-${arch}`)
 const app = join(work, 'HeyBotOS')
 rmSync(work, { recursive: true, force: true })
 mkdirSync(work, { recursive: true })
@@ -83,17 +83,21 @@ Terminal=false
 Categories=Development;
 StartupWMClass=HeyBotOS
 `
+// --only tar | deb | appimage makes just that one (the .tar.gz is always made: it is quick).
+const only = flag('--only')
 const made = []
 
 // ── .tar.gz ──
 {
-  const out = join(desktop, 'dist', `HeyBotOS-${version}-linux-${arch}.tar.gz`)
+  const out = join(OUT, `HeyBotOS-${version}-linux-${arch}.tar.gz`)
   run('tar', ['-czf', out, '-C', work, 'HeyBotOS'])
   made.push(out)
 }
 
 // ── .deb ──
-if (has('dpkg-deb')) {
+if (only && only !== 'deb') {
+  /* not asked for */
+} else if (has('dpkg-deb')) {
   const pkg = join(work, 'deb')
   mkdirSync(join(pkg, 'DEBIAN'), { recursive: true })
   mkdirSync(join(pkg, 'opt'), { recursive: true })
@@ -147,7 +151,7 @@ command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database -q
 exit 0
 `,
   )
-  const out = join(desktop, 'dist', `heybotos_${version}_${DEB_ARCH}.deb`)
+  const out = join(OUT, `heybotos_${version}_${DEB_ARCH}.deb`)
   rmSync(out, { force: true })
   run('dpkg-deb', ['--root-owner-group', '--build', pkg, out])
   rmSync(pkg, { recursive: true, force: true })
@@ -155,7 +159,9 @@ exit 0
 } else console.log('No dpkg-deb here: the .deb is skipped.')
 
 // ── AppImage ──
-if (has('mksquashfs')) {
+if (only && only !== 'appimage') {
+  /* not asked for */
+} else if (has('mksquashfs')) {
   const dir = join(work, 'AppDir')
   mkdirSync(dir, { recursive: true })
   run('cp', ['-a', app, join(dir, 'app')])
@@ -167,11 +173,16 @@ if (has('mksquashfs')) {
     `#!/bin/sh
 # An AppImage is mounted only while it runs, and HeyBotOS's service keeps running after the window
 # is closed. So the app lives in the owner's data folder: copied there the first time, and again
-# when this AppImage is a different build.
+# when this AppImage is a newer build than what is there.
 here="$(dirname "$(readlink -f "$0")")"
 data="\${XDG_DATA_HOME:-$HOME/.local/share}"
 dest="$data/heybotos/app"
-if ! cmp -s "$here/app/resources/heybotos/BUILD" "$dest/resources/heybotos/BUILD" 2>/dev/null; then
+# The app also updates itself where it lives, so what is there may be newer than this file: only a
+# missing copy, an older one, or another build of the same version is replaced.
+mine="$(cut -d' ' -f1 "$here/app/resources/heybotos/BUILD")"
+theirs="$(cut -d' ' -f1 "$dest/resources/heybotos/BUILD" 2>/dev/null)"
+newest="$(printf '%s\\n%s\\n' "$theirs" "$mine" | sort -V | tail -n 1)"
+if [ -z "$theirs" ] || { [ "$newest" = "$mine" ] && ! cmp -s "$here/app/resources/heybotos/BUILD" "$dest/resources/heybotos/BUILD"; }; then
   rm -rf "$dest.new"
   mkdir -p "$data/heybotos"
   cp -a "$here/app" "$dest.new" || { echo "HeyBotOS could not copy itself to $dest" >&2; exit 1; }
@@ -190,7 +201,7 @@ exec "$dest/heybotos-desktop" "$@"
   )
   const squash = join(work, 'app.squashfs')
   run('mksquashfs', [dir, squash, '-root-owned', '-noappend', '-comp', 'zstd', '-quiet', '-no-progress'])
-  const out = join(desktop, 'dist', `HeyBotOS-${version}-${APPIMAGE_ARCH}.AppImage`)
+  const out = join(OUT, `HeyBotOS-${version}-${APPIMAGE_ARCH}.AppImage`)
   writeFileSync(out, Buffer.concat([readFileSync(await tool(...RUNTIME)), readFileSync(squash)]))
   chmodSync(out, 0o755)
   rmSync(squash)

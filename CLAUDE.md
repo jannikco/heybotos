@@ -59,6 +59,10 @@ coding agents and people alike; `CONTRIBUTING.md` has the short version.
     awake, opening a link. Do not test `process.platform` elsewhere in the service, and do not write a
     fixed path to a program (`/usr/bin/git`): ask `platform.ts`. `src/cli.ts` holds the background service
     for each system (launchd, systemd user service or autostart entry, Windows Run key).
+  - `src/updates.ts` finds a newer version (the signed list at `updates/latest.json` in this repository),
+    fetches the file for this system and checks it against the list. It never installs: the desktop app
+    does (`installUpdate()` in `apps/desktop/main.mjs`, a script per system that swaps the app once it has
+    closed). Nothing from an unsigned or badly described list may be used, and no address but an https one.
   - `src/policy/gate.ts` + `src/approvals.ts` + `hooks/` — the gate: rulebook, inbox requests, the
     PreToolUse hook and the PATH wrappers. Workers also get `state/zdot` as their zsh start-up folder so the
     wrappers stay first in login shells.
@@ -97,11 +101,15 @@ coding agents and people alike; `CONTRIBUTING.md` has the short version.
   `scripts/smoke-app.mjs` starts a built app and checks that its window opens and its service answers; the
   GitHub check runs it on Linux and Windows, because that is the only place Windows is ever tried.
   `.github/workflows/release.yml` (run by hand with a tag) adds the Linux and Windows packages to a release.
+  `scripts/smoke-update.mjs` has an installed app update itself to a second build (made with `--as`); the
+  check runs that too. A release is one command, `pnpm release <patch|minor|version>` (`scripts/release.mjs`
+  at the top of the repository): it does all of the above and signs `updates/latest.json` with a key that is
+  not in the repository. Never commit a key, and never edit `updates/latest.json` by hand.
 - `e2e` — Playwright against the daemon in demo mode.
 
 ## Commands
 
-`pnpm start` (build dashboard, run daemon) · `pnpm heybotos open` (single-use sign-in link) · `pnpm heybotos
+`pnpm release patch` (publish a version, see CONTRIBUTING.md) · `pnpm start` (build dashboard, run daemon) · `pnpm heybotos open` (single-use sign-in link) · `pnpm heybotos
 install|uninstall|logs` (background service, label `com.heybotos.daemon`) · `pnpm demo` (fake CLI, throwaway
 data) · `pnpm test` · `pnpm e2e` · `pnpm typecheck` · `pnpm smoke` (`HEYBOTOS_SMOKE_ONLY=basic|gate|codex|manager`, or `connect` with `HEYBOTOS_SMOKE_ENGINE=claude|codex|grok`).
 

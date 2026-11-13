@@ -1,17 +1,17 @@
 // Builds HeyBotOS for Windows, on Windows: the app as a folder, and from it a .zip and an installer.
 //
-//   node scripts/make-win.mjs [--arch x64|arm64]
+//   node scripts/make-win.mjs [--arch x64|arm64] [--only setup] [--as <version> --out <folder>]
 //
-// The installer needs NSIS (makensis); without it only the .zip is made. Nothing is uploaded, and
+// The installer is made with NSIS (makensis): the one installed here, or one this script fetches. Nothing is uploaded, and
 // nothing is signed: Windows will say the publisher is unknown the first time the installer runs.
 //
 // The installer puts the app in the owner's own programs folder, so it asks for no administrator
 // rights. The app carries the service, as on the Mac: it starts it, and has Windows start it at
 // sign-in, the first time it opens.
 import { execFileSync } from 'node:child_process'
-import { cpSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { desktop, electronDist, fillResources, tool } from './payload.mjs'
+import { desktop, electronDist, fillResources, flag, OUT, tool } from './payload.mjs'
 
 if (process.platform !== 'win32') throw new Error('The Windows packages are built on Windows (the GitHub release workflow does it).')
 const arch = process.argv.includes('--arch') ? process.argv[process.argv.indexOf('--arch') + 1] : process.arch
@@ -21,7 +21,7 @@ const RCEDIT = ['https://github.com/electron/rcedit/releases/download/v2.0.0/rce
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...opts })
 
 // ── the app as a folder ──
-const work = join(desktop, 'dist', `win-${arch}`)
+const work = join(OUT, `win-${arch}`)
 const app = join(work, 'HeyBotOS')
 rmSync(work, { recursive: true, force: true })
 mkdirSync(work, { recursive: true })
@@ -43,8 +43,8 @@ run(await tool(...RCEDIT), [
 const made = []
 
 // ── .zip ──
-{
-  const out = join(desktop, 'dist', `HeyBotOS-${version}-win-${arch}.zip`)
+if (flag('--only') !== 'setup') {
+  const out = join(OUT, `HeyBotOS-${version}-win-${arch}.zip`)
   rmSync(out, { force: true })
   // The tar that comes with Windows writes zip files too.
   run('tar', ['-a', '-c', '-f', out, '-C', work, 'HeyBotOS'])
@@ -52,16 +52,33 @@ const made = []
 }
 
 // ── installer ──
-const makensis = ['makensis', join(process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)', 'NSIS', 'makensis.exe'), join(process.env.ProgramFiles ?? 'C:\\Program Files', 'NSIS', 'makensis.exe')].find((bin) => {
+// NSIS, which makes the installer: the one on this computer if there is one, otherwise a fixed
+// release, fetched once and checked against its checksum.
+const NSIS = ['https://downloads.sourceforge.net/project/nsis/NSIS%203/3.10/nsis-3.10.zip', 'fcdce3229717a2a148e7cda0ab5bdb667f39d8fb33ede1da8dabc336bd5ad110']
+const works = (bin) => {
   try {
     execFileSync(bin, ['/VERSION'], { stdio: 'ignore' })
     return true
   } catch {
     return false
   }
-})
+}
+let makensis = ['makensis', join(process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)', 'NSIS', 'makensis.exe'), join(process.env.ProgramFiles ?? 'C:\\Program Files', 'NSIS', 'makensis.exe')].find(works)
+if (!makensis && !process.argv.includes('--no-installer')) {
+  try {
+    const zip = await tool(...NSIS)
+    const into = join(desktop, 'dist', 'tools', 'nsis')
+    if (!existsSync(join(into, 'nsis-3.10', 'makensis.exe'))) {
+      mkdirSync(into, { recursive: true })
+      run('tar', ['-xf', zip, '-C', into])
+    }
+    if (works(join(into, 'nsis-3.10', 'makensis.exe'))) makensis = join(into, 'nsis-3.10', 'makensis.exe')
+  } catch (e) {
+    console.log(`NSIS could not be fetched: ${e.message}`)
+  }
+}
 if (makensis) {
-  const out = join(desktop, 'dist', `HeyBotOS-${version}-win-${arch}-setup.exe`)
+  const out = join(OUT, `HeyBotOS-${version}-win-${arch}-setup.exe`)
   rmSync(out, { force: true })
   const kb = Math.round(Number(execFileSync('powershell', ['-NoProfile', '-Command', `(Get-ChildItem -Recurse -File '${app}' | Measure-Object -Sum Length).Sum`], { encoding: 'utf8' }).trim()) / 1024)
   const RUN_KEY = 'Software\\Microsoft\\Windows\\CurrentVersion\\Run'
@@ -71,6 +88,7 @@ if (makensis) {
     nsi,
     `Unicode true
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
 
 Name "HeyBotOS"
 OutFile "${out}"
@@ -126,6 +144,12 @@ Section "HeyBotOS"
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "EstimatedSize" ${kb}
+  ; Run by the app to update itself (silently, with /RELAUNCH), the installer opens the app again.
+  \${GetParameters} $R0
+  ClearErrors
+  \${GetOptions} $R0 "/RELAUNCH" $R1
+  IfErrors +2
+  Exec '"$INSTDIR\\HeyBotOS.exe"'
 SectionEnd
 
 Section "Uninstall"
@@ -153,6 +177,6 @@ SectionEnd
   )
   run(makensis, ['/V2', nsi])
   made.push(out)
-} else console.log('No NSIS here (makensis): the installer is skipped.')
+} else console.log('No NSIS here (makensis), and it could not be fetched: the installer is skipped.')
 
 console.log(`\nBuilt for Windows ${arch}:\n${made.map((f) => `  ${f}  (${(statSync(f).size / 1024 / 1024).toFixed(0)} MB)`).join('\n')}\n  ${app}\\  (the app as a folder)`)

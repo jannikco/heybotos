@@ -12,6 +12,8 @@ declare global {
       quickCancel(): void
       onNavigate(fn: (path: string) => void): void
       onCommand(fn: (name: string) => void): void
+      pickFolder?(): Promise<string | null>
+      installUpdate?(): Promise<{ ok: boolean; problem?: string }>
     }
   }
 }

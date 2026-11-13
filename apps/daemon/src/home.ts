@@ -39,6 +39,13 @@ export interface Config {
   notifications: boolean
   /** Where your Claude Code connector (MCP server) definitions are read from. */
   connectorsFile: string
+  updates: {
+    /** Look for a newer version now and then. Nothing is installed without your say. */
+    auto: boolean
+    /** Empty = where the HeyBotOS project publishes its updates. A fork sets its own address and key. */
+    url: string
+    publicKey: string
+  }
   manager: {
     /** Empty = the CLI's default. A smaller, faster model is usually right for managing. */
     model: string
@@ -69,6 +76,7 @@ const DEFAULTS: Config = {
   projectRoots: [],
   notifications: true,
   connectorsFile: '~/.claude.json',
+  updates: { auto: true, url: '', publicKey: '' },
   manager: { model: '', effort: '', batchSeconds: 30, maxTurnsPerHour: 40, rotateAfterTurns: 40 },
 }
 

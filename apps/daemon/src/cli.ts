@@ -1,4 +1,4 @@
-// Small helper for the terminal: `heybotos open | url | status | install | uninstall | logs` (in a
+// Small helper for the terminal: `heybotos open | url | status | update | install | uninstall | logs` (in a
 // checkout: `pnpm heybotos …`). The desktop app calls `ensure` every time it opens.
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -335,6 +335,12 @@ try {
     if (!url) throw new Error('No sign-in link found. Restart HeyBotOS.')
     if (cmd === 'url') console.log(url)
     else openLink(url, (ok) => console.log(ok ? 'Opened the dashboard in your browser.' : `Could not open a browser. Open this link yourself: ${url}`))
+  } else if (cmd === 'update') {
+    // Looks and tells; installing is done by the app, which has to close and open again for it.
+    const u = (await (await fetch(`${base}/api/update/check`, { method: 'POST', headers: { authorization: `Bearer ${home.secret}` } })).json()) as { current: string; latest: { version: string } | null; problem: string | null; how: string; hint: string | null }
+    if (u.how === 'source') console.log(u.hint)
+    else if (!u.latest) console.log(u.problem ? `Could not look for a newer version: ${u.problem}` : `HeyBotOS ${u.current} is the newest version.`)
+    else console.log(`Version ${u.latest.version} is available (you have ${u.current}).\n${u.hint ?? 'Open HeyBotOS, go to Settings > General and choose "Update and restart".'}`)
   } else if (cmd === 'status') {
     const runs = ((await (await api('/api/runs'))!.json()) as { runs: Array<{ status: string; role: string | null }> }).runs.filter((r) => r.role !== 'manager')
     const live = runs.filter((r) => ['starting', 'running', 'stopping'].includes(r.status)).length
@@ -347,7 +353,7 @@ try {
     }
     console.log(`HeyBotOS is running at ${base}${kept ? ' (background service)' : ''}. ${live} working, ${queued} waiting to start.`)
   } else {
-    console.error(`Usage: ${SELF} open | url | status | install | uninstall | logs`)
+    console.error(`Usage: ${SELF} open | url | status | update | install | uninstall | logs`)
     process.exit(1)
   }
 } catch (e) {

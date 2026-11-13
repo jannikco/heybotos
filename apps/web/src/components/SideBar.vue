@@ -40,6 +40,7 @@ const faceState = (t: ThreadView) => (t.needsYou ? 'needs' : t.working || (state
       <span class="flex flex-1 items-center gap-2 pl-1">
         <BrandWordmark :height="17" />
         <StageTag />
+        <RouterLink v-if="state.update?.latest" to="/settings/general" class="update-pill" :title="`Version ${state.update.latest.version} is available`">Update</RouterLink>
       </span>
       <button class="round" aria-label="Find or run anything" title="Find or run anything (⌘K)" @click="command('palette')">
         <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.2" /><path d="m10.2 10.2 3.3 3.3" /></svg>
@@ -160,5 +161,18 @@ const faceState = (t: ThreadView) => (t.needsYou ? 'needs' : t.working || (state
 .foot.on {
   @apply text-ink;
   background: var(--hover);
+}
+.update-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 1.05rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 </style>

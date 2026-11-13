@@ -3,7 +3,7 @@ import { Readable } from 'node:stream'
 import { extname, join, normalize } from 'node:path'
 import { Hono, type Context } from 'hono'
 import { streamSSE, type SSEStreamingApi } from 'hono/streaming'
-import type { ApprovalView, CreateRunInput, CreateTaskInput, LiveDelta, RunView, SettingsPatch, StoredEvent, TaskStage, TaskView, UpdateTaskInput } from '@heybotos/protocol'
+import type { ApprovalView, CreateRunInput, CreateTaskInput, LiveDelta, RunView, SettingsPatch, StoredEvent, TaskStage, TaskView, UpdateTaskInput, UpdateState } from '@heybotos/protocol'
 import type { Bus } from '../bus.ts'
 import type { Home } from '../home.ts'
 import type { Registry } from '../registry.ts'
@@ -21,6 +21,7 @@ import { handleMcp, managerTools } from '../mcp.ts'
 import { pulseKind, type Supervisor } from '../engines/supervisor.ts'
 import { engineHealth } from '../health.ts'
 import { listModels } from '../models.ts'
+import type { Updates } from '../updates.ts'
 import type { Auth } from './auth.ts'
 
 export interface AppDeps {
@@ -48,6 +49,8 @@ export interface AppDeps {
   stage?: string
   /** What the Mac app was built from; absent in a checkout. */
   build?: string | null
+  /** Finds and fetches newer versions; absent in tests that do not need it. */
+  updates?: Updates
 }
 
 const MIME: Record<string, string> = {
@@ -188,6 +191,13 @@ export function createApp(deps: AppDeps): Hono {
   const bad = (c: Context, message: string) => c.json({ error: message }, 400)
 
   app.get('/api/me', (c) => c.json({ ok: true, version: deps.version, stage: deps.stage ?? null, build: deps.build ?? null, welcomed: !home.config.welcome || manager.welcomed(), home: home.root, maxWorkers: home.config.maxWorkers, managerName: manager.name() }))
+
+  // ── updates ──
+  // The service finds, fetches and checks a newer version; the desktop app installs it.
+  const noUpdates: UpdateState = { current: deps.version, latest: null, checkedAt: null, status: 'idle', progress: null, problem: null, how: 'source', hint: null, file: null, auto: false }
+  app.get('/api/update', (c) => c.json(deps.updates?.state() ?? noUpdates))
+  app.post('/api/update/check', async (c) => c.json((await deps.updates?.check()) ?? noUpdates))
+  app.post('/api/update/download', async (c) => c.json((await deps.updates?.download()) ?? noUpdates))
 
   // For the desktop app: it holds the local secret and trades it for a browser session of its own.
   app.get('/api/login-link', (c) => c.json({ url: auth.loginUrl(c.req.query('next') ?? '') }))
@@ -812,6 +822,8 @@ export function createApp(deps: AppDeps): Hono {
           bus.on('chat', onChat)
           const onIdentity = (x: unknown) => send({ event: 'identity', data: JSON.stringify(x) })
           bus.on('identity', onIdentity)
+          const onUpdate = (x: unknown) => send({ event: 'update', data: JSON.stringify(x) })
+          bus.on('update', onUpdate)
           bus.on('run', onRun)
           bus.on('event', onEvent)
           bus.on('task', onTask)
@@ -823,6 +835,7 @@ export function createApp(deps: AppDeps): Hono {
             bus.off('approval', onApproval)
             bus.off('chat', onChat)
             bus.off('identity', onIdentity)
+            bus.off('update', onUpdate)
           }
         },
         [{ event: 'hello', data: JSON.stringify({ runs: supervisor.list(), tasks: tasks.list(), approvals: approvals.list('pending') }) }],

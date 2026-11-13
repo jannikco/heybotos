@@ -41,7 +41,7 @@ export class Settings {
   read(): SettingsView {
     const c = this.home.config
     return {
-      general: { maxWorkers: c.maxWorkers, notifications: c.notifications, projectRoots: [...c.projectRoots] },
+      general: { maxWorkers: c.maxWorkers, notifications: c.notifications, projectRoots: [...c.projectRoots], autoUpdate: c.updates.auto },
       manager: { name: this.manager.name(), model: c.manager.model, effort: c.manager.effort, batchSeconds: c.manager.batchSeconds },
       engines: { claude: { model: c.engines.claude.model, effort: c.engines.claude.effort }, codex: { model: c.engines.codex.model, effort: c.engines.codex.effort }, grok: { model: c.engines.grok.model, effort: c.engines.grok.effort } },
       routing: { mode: this.router.cfg.mode, pool: [...this.router.cfg.pool], byKind: { ...this.router.cfg.byKind }, fallback: this.router.cfg.fallback, headroom: { ...this.router.cfg.headroom } },
@@ -75,6 +75,7 @@ export class Settings {
         next.config.maxWorkers = n
       }
       if (g.notifications !== undefined) next.config.notifications = g.notifications === true
+      if (g.autoUpdate !== undefined) next.config.updates.auto = g.autoUpdate === true
       if (g.projectRoots !== undefined) {
         const roots = list(g.projectRoots, 'Project folders', 20)
         if (!roots.length) throw new Error('Name at least one folder that holds your projects.')

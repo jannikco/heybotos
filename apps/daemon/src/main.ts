@@ -25,6 +25,7 @@ import { codexAdapter } from './engines/codex.ts'
 import { grokAdapter } from './engines/grok.ts'
 import { Supervisor } from './engines/supervisor.ts'
 import { Auth } from './http/auth.ts'
+import { installedApp, Updates } from './updates.ts'
 import { createApp } from './http/app.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -59,14 +60,17 @@ const settings = new Settings({ home, manager, approvals, router, registry, conn
 const presence = { desktop: 0 }
 watchInbox(home, bus, undefined, presence)
 const auth = new Auth(home, db, home.config.port)
+// Only an installed app updates itself; from the source code there is nothing to replace.
+const updates = new Updates(home, bus, { version, app: build ? installedApp() : null })
 const webRoot = join(repo, 'apps', 'web', 'dist')
-const app = createApp({ home, bus, supervisor, registry, tasks, approvals, manager, router, routines, connectors, gateway, staff, settings, threads: new Threads(db, registry), presence, auth, version, stage, build, webRoot: existsSync(join(webRoot, 'index.html')) ? webRoot : undefined })
+const app = createApp({ home, bus, supervisor, registry, tasks, approvals, manager, router, routines, connectors, gateway, staff, settings, threads: new Threads(db, registry), presence, auth, version, stage, build, updates, webRoot: existsSync(join(webRoot, 'index.html')) ? webRoot : undefined })
 
 supervisor.start()
 tasks.reconcile()
 manager.start()
 router.start()
 routines.start()
+updates.start()
 void registry
   .scan()
   .then((n) => console.log(`  Projects      ${n} folders found in ${home.config.projectRoots.join(', ')}`))
@@ -96,6 +100,7 @@ function stop(): void {
   manager.stop()
   router.stop()
   routines.stop()
+  updates.stop()
   connectors.close()
   supervisor.shutdown()
   server.close()

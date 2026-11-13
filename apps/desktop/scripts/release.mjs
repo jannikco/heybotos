@@ -85,6 +85,8 @@ const cask = `cask "heybotos" do
     end
   end
 
+  # The app fetches and installs newer versions itself (Settings > General > Version).
+  auto_updates true
   depends_on macos: :monterey
 
   app "HeyBotOS.app"

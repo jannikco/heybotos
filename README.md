@@ -144,12 +144,28 @@ and an accident:
 
 Your data folder holds settings in `config/`, the database and logs in `state/`, and attachments in `files/`.
 The background service is set up by the app and keeps workers and routines going when the window is closed.
-The terminal command takes `open`, `status`, `logs` and `uninstall`.
+The terminal command takes `open`, `status`, `update`, `logs` and `uninstall`.
 
 To remove HeyBotOS: `brew uninstall --cask heybotos` on macOS, `sudo apt remove heybotos` on Linux (with the
 AppImage: run `heybotos uninstall`, then delete `~/.local/share/heybotos`), and "Installed apps" in Settings
 on Windows. Run `heybotos uninstall` first where you can: it stops the background service. Your data folder
 stays until you delete it.
+
+## Updates
+
+HeyBotOS looks for a newer version a few times a day and tells you in the sidebar when there is one. In
+Settings, under General, you see what is new and choose "Update and restart": the app fetches the new
+version, replaces itself and opens again. Workers that are running keep running.
+
+- **Nothing is installed without your say**, and looking by itself can be switched off in the same place.
+- **Only the project's own releases are accepted.** The list of the newest version is signed with a key that
+  is not in this repository, and a download is thrown away unless it matches the checksum in that list.
+- **Looking means one request to GitHub** for a small file. It carries nothing about you or your work.
+- Installed from the `.deb`, HeyBotOS sits where only the system may write: it fetches the new package and
+  shows you the `apt` command that installs it. From the source code, update with `git pull`.
+
+This came with version 0.5.0. From an older version, update once the way you installed it
+(`brew upgrade --cask jannikco/tap/heybotos`, or the new file from the releases page).
 
 ## Build from source
 

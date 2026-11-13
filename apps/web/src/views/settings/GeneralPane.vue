@@ -9,6 +9,7 @@ import UiSwitch from '../../components/ui/UiSwitch.vue'
 import { change, saving, settings } from '../../settings'
 import { working } from '../../store'
 import { setTheme, themeChoice, type ThemeChoice } from '../../theme'
+import UpdatePanel from './UpdatePanel.vue'
 
 const g = computed(() => settings.value!.general)
 const workers = computed({ get: () => g.value.maxWorkers, set: (n) => void change('workers', { general: { maxWorkers: n } }) })
@@ -26,7 +27,7 @@ const addRoot = (path: string) => change('roots', { general: { projectRoots: [..
 const removeRoot = (path: string) => change('roots', { general: { projectRoots: g.value.projectRoots.filter((r) => r !== path) } })
 
 // Inside the desktop app the Mac's own folder chooser is there to use.
-const desktop = (window as unknown as { heybotosDesktop?: { pickFolder?: () => Promise<string | null> } }).heybotosDesktop
+const desktop = window.heybotosDesktop
 async function choose(): Promise<void> {
   // An app that was open while it was updated may not answer yet; typing the path still works.
   const path = await desktop?.pickFolder?.().catch(() => null)
@@ -73,6 +74,8 @@ async function choose(): Promise<void> {
       </UiList>
       <p v-if="saving.errors.roots" class="set-error px-4 pb-3" role="alert">{{ saving.errors.roots }}</p>
     </SettingGroup>
+
+    <UpdatePanel />
   </div>
 </template>
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## Not released yet
+
+- **HeyBotOS updates itself.** It looks for a newer version now and then and says so in the sidebar. In
+  Settings, General, Version you see what is new and choose "Update and restart": the app fetches the new
+  version, checks that it is the one the project published, replaces itself and opens again. Workers keep
+  running through it. Looking by itself can be switched off, and nothing is installed without your say.
+- Where the app cannot replace itself (installed from the `.deb`), it fetches the new package and gives
+  you the one command that installs it.
+- `heybotos update` in a terminal says whether there is a newer version.
+
+This is the first version that can do this: from 0.4.0 or older, update once the way you installed it.
+
 ## 0.4.0 (beta)
 
 - **Linux.** The desktop app as a `.deb` (Debian, Ubuntu, Mint) and an AppImage, for x64 and arm64. The
