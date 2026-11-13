@@ -91,7 +91,9 @@ describe("HeyBotOS's own connectors", () => {
     expect(list.find((c) => c.name === 'browser')).toMatchObject({ transport: 'stdio', source: 'from the browser plugin', trusted: false })
     expect(list.find((c) => c.name === 'docs-search')).toMatchObject({ transport: 'http', where: 'https://docs.example', source: 'from shop' })
     // The plugin's own folder is filled in where it stood as a placeholder.
-    expect(JSON.parse(w.db.get<{ args: string }>(`select args from connectors where name = 'browser'`)!.args)).toEqual([join(plugin, 'server.js'), '--headless'])
+    // The plugin's file keeps the slash it was written with, which Windows takes as well as its own.
+    const slashes = (p: string) => p.replace(/\\/g, '/')
+    expect((JSON.parse(w.db.get<{ args: string }>(`select args from connectors where name = 'browser'`)!.args) as string[]).map(slashes)).toEqual([slashes(join(plugin, 'server.js')), '--headless'])
     expect(w.connectors.importFromClaude([project]).added).toEqual([])
   })
 
