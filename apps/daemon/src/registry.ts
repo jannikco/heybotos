@@ -24,6 +24,7 @@ interface ProjectRow {
   has_instructions: number
   missing: number
   notes: string
+  connectors: string
   created_at: number
   scanned_at: number | null
   key: string | null
@@ -168,6 +169,7 @@ export class Registry {
       openTasks: open,
       key: r.key ?? this.giveKey(r.slug),
       starred: r.starred === 1,
+      connectors: JSON.parse(r.connectors || '[]') as string[],
       stages,
       lastTaskAt,
     }
@@ -201,7 +203,7 @@ export class Registry {
   }
 
   /** Change a project's key, or star it. */
-  update(slug: string, patch: { key?: string; starred?: boolean }): ProjectView {
+  update(slug: string, patch: { key?: string; starred?: boolean; connectors?: string[] }): ProjectView {
     const r = this.row(slug)
     if (!r) throw new Error('No such project.')
     if (patch.key !== undefined) {
@@ -212,6 +214,7 @@ export class Registry {
       this.db.run('update projects set key = ? where slug = ?', key, slug)
     }
     if (patch.starred !== undefined) this.db.run('update projects set starred = ? where slug = ?', patch.starred ? 1 : 0, slug)
+    if (patch.connectors !== undefined) this.db.run('update projects set connectors = ? where slug = ?', JSON.stringify([...new Set(patch.connectors)]), slug)
     return this.get(slug)!
   }
 

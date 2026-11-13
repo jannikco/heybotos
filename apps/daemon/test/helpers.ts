@@ -140,6 +140,7 @@ export function makeWorld(before?: (home: Home) => void): World {
   connectors.importOnce()
   const gateway = new Gateway(home, db, connectors, approvals)
   tasks.checkConnectors = (names) => connectors.check(names)
+  tasks.connectorsTrusted = (names) => connectors.allTrusted(names)
   sup.hubFor = (run) => ({ name: HUB, url: gateway.urlFor(run.id, approvals.url) })
   const staff = new Staff(db, manager)
   tasks.staff = staff

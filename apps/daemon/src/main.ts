@@ -55,6 +55,7 @@ connectors.importOnce()
 connectors.checkNew()
 const gateway = new Gateway(home, db, connectors, approvals)
 tasks.checkConnectors = (names) => connectors.check(names)
+tasks.connectorsTrusted = (names) => connectors.allTrusted(names)
 supervisor.hubFor = (run) => ({ name: HUB, url: gateway.urlFor(run.id, approvals.url) })
 const settings = new Settings({ home, manager, approvals, router, registry, connectors, supervisor })
 const presence = { desktop: 0 }

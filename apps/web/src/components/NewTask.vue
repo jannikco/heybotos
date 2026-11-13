@@ -23,6 +23,8 @@ const assignee = ref('')
 const model = ref('')
 const effort = ref('')
 const available = ref<string[]>([])
+/** Connectors the owner trusts: a worker that has only these keeps its shell. */
+const trusted = ref<string[]>([])
 const connectors = ref<string[]>([])
 const problem = ref('')
 const busy = ref(false)
@@ -47,15 +49,26 @@ watch(
     assignee.value = props.assignee ?? ''
     if (props.project) projectName.value = state.projects.find((p) => p.slug === props.project)?.name ?? props.project
     if (!state.projectsLoaded) void loadProjects().catch(() => {})
-    void api<{ connectors: string[] }>('/api/connectors')
-      .then((r) => (available.value = r.connectors))
+    void api<{ connectors: string[]; list: Array<{ name: string; enabled: boolean; trusted: boolean }> }>('/api/connectors')
+      .then((r) => {
+        available.value = r.connectors
+        trusted.value = r.list.filter((c) => c.enabled && c.trusted).map((c) => c.name)
+        usual()
+      })
       .catch(() => {})
     dialog.value?.showModal()
   },
 )
+/** Tick the connectors the project always gets. */
+function usual(): void {
+  connectors.value = (picked.value?.connectors ?? []).filter((c) => available.value.includes(c))
+}
 watch(picked, (p) => {
   if (!p?.isGit) separate.value = false
+  usual()
 })
+/** With a connector that is not trusted, the worker reads other people's text and gets no shell. */
+const noShell = computed(() => connectors.value.some((c) => !trusted.value.includes(c)))
 
 async function start(): Promise<void> {
   if (!picked.value) {
@@ -126,13 +139,14 @@ async function start(): Promise<void> {
 
       <fieldset v-if="available.length" class="mt-4">
         <legend class="text-sm font-medium">Connectors it may use</legend>
-        <p class="text-ink-2 mt-0.5 text-sm">None by default. They work on every engine. With any of these the worker cannot run commands that change things, and calls that change something wait for your yes.</p>
+        <p class="text-ink-2 mt-0.5 text-sm">{{ picked?.connectors?.length ? 'The ones this project always gets are ticked.' : 'None unless you tick one.' }} They work on every engine.</p>
         <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
           <label v-for="c in available" :key="c" class="flex items-center gap-2">
             <input v-model="connectors" type="checkbox" :value="c" class="accent-signal size-4" />
             {{ c }}
           </label>
         </div>
+        <p v-if="noShell" class="text-wait mt-2 text-sm" role="status">With {{ connectors.filter((c) => !trusted.includes(c)).join(', ') }} this worker cannot run commands or tests: what such a connector returns may be written by other people. Mark a connector as trusted in Settings, under Connectors, if it is a tool or a system of your own.</p>
       </fieldset>
 
       <p v-if="problem" class="bg-bad-soft text-bad mt-4 rounded-lg px-3.5 py-2.5" role="alert">{{ problem }}</p>

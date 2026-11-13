@@ -74,6 +74,10 @@ coding agents and people alike; `CONTRIBUTING.md` has the short version.
     the connectors the run's task was given and puts every call through the gate). Workers see it as the
     server `hub`, tools named `<connector>--<tool>` (never a double underscore: Grok drops such tools).
     Claude gets it by `--mcp-config`, Codex by `-c mcp_servers.hub.*`, Grok by a per-run `--agent` file.
+    A worker never gets a CLI's own MCP servers or plugins (`--strict-mcp-config`): they are brought in as
+    connectors (`importFromClaude()` reads the user's, the plugins' and the projects' definitions). A
+    worker with a connector that is not marked trusted has no shell and no sub-agents (`noShell` in
+    `tasks.ts`); keep that default, and never make a connector trusted without the owner saying so.
 - `apps/web` — Vue 3.5 + Vite + Tailwind 4. Tokens in `src/style.css`. Uses TypeScript 6 because `vue-tsc`
   does not run on 7 yet.
   - Agent text is shown with `components/Prose.vue` (`<Prose :text />`, `live` while it is being written),

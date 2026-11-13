@@ -108,7 +108,7 @@ const SELF = process.versions.electron ? 'heybotos' : 'pnpm heybotos'
 export function createApp(deps: AppDeps): Hono {
   const { supervisor, registry, tasks, approvals, manager, router, routines, bus, auth, home } = deps
   // Built for each request: the connectors the manager may hand out change while the daemon runs.
-  const tools = () => managerTools({ home, registry, tasks, supervisor, routines, connectorNames: deps.connectors.names(), rename: (name) => manager.rename(name), staff: deps.staff, settings: deps.settings })
+  const tools = () => managerTools({ home, registry, tasks, supervisor, routines, connectorNames: deps.connectors.names(), trustedConnectors: deps.connectors.list().filter((c) => c.enabled && c.trusted).map((c) => c.name), rename: (name) => manager.rename(name), staff: deps.staff, settings: deps.settings })
   const app = new Hono()
 
   app.onError((err, c) => {
@@ -350,10 +350,12 @@ export function createApp(deps: AppDeps): Hono {
   })
 
   app.put('/api/projects/:slug', async (c) => {
-    const body = (await c.req.json().catch(() => null)) as { key?: unknown; starred?: unknown } | null
+    const body = (await c.req.json().catch(() => null)) as { key?: unknown; starred?: unknown; connectors?: unknown } | null
     if (!registry.get(c.req.param('slug'))) return c.json({ error: 'No such project.' }, 404)
     try {
-      const project = registry.update(c.req.param('slug'), { key: typeof body?.key === 'string' ? body.key : undefined, starred: typeof body?.starred === 'boolean' ? body.starred : undefined })
+      // Connectors every task in the project gets: only ones that are set up.
+      const usual = Array.isArray(body?.connectors) ? deps.connectors.check(body.connectors.filter((x): x is string => typeof x === 'string')) : undefined
+      const project = registry.update(c.req.param('slug'), { key: typeof body?.key === 'string' ? body.key : undefined, starred: typeof body?.starred === 'boolean' ? body.starred : undefined, connectors: usual })
       // Every task of the project is named by its key.
       if (typeof body?.key === 'string') for (const t of tasks.list({ project: project.slug })) bus.emit('task', t)
       return c.json({ project })
@@ -694,14 +696,14 @@ export function createApp(deps: AppDeps): Hono {
     const text = (v: unknown) => (typeof v === 'string' ? v : undefined)
     const pairs = (v: unknown) => (v !== null && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k, x]) => k.trim() && typeof x === 'string').map(([k, x]) => [k.trim(), x as string])) : undefined)
     try {
-      const saved = deps.connectors.save({ name: text(b.name) ?? '', url: text(b.url), command: text(b.command), args: Array.isArray(b.args) ? b.args.map(String) : undefined, headers: pairs(b.headers), env: pairs(b.env) })
+      const saved = deps.connectors.save({ name: text(b.name) ?? '', url: text(b.url), command: text(b.command), args: Array.isArray(b.args) ? b.args.map(String) : undefined, headers: pairs(b.headers), env: pairs(b.env), trusted: typeof b.trusted === 'boolean' ? b.trusted : undefined })
       return c.json({ connector: await deps.connectors.refresh(saved.name) })
     } catch (e) {
       return c.json({ error: (e as Error).message }, 400)
     }
   })
   app.post('/api/connectors/import', async (c) => {
-    const result = deps.connectors.importFromClaude()
+    const result = deps.connectors.importFromClaude(registry.list().filter((p) => p.kind === 'code' && !p.missing).map((p) => p.path))
     await Promise.all(result.added.map((n) => deps.connectors.refresh(n)))
     return c.json({ ...result, list: deps.connectors.list() })
   })
@@ -718,6 +720,15 @@ export function createApp(deps: AppDeps): Hono {
       return c.json({ url: await deps.connectors.startSignIn(c.req.param('name'), new URL(c.req.url).origin) })
     } catch (e) {
       return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+  // Whether workers keep their shell with this connector: the owner's word that what it returns can be trusted.
+  app.post('/api/connectors/:name/trusted', async (c) => {
+    const b = (await c.req.json().catch(() => ({}))) as { trusted?: unknown }
+    try {
+      return c.json({ connector: deps.connectors.setTrusted(c.req.param('name'), b.trusted === true) })
+    } catch (e) {
+      return bad(c, (e as Error).message)
     }
   })
   app.post('/api/connectors/:name/enabled', async (c) => {

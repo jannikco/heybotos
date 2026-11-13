@@ -64,9 +64,10 @@ const projectLine = (p: ProjectView) => ({
   ...(p.lastCommitAt ? { last_commit: new Date(p.lastCommitAt).toISOString().slice(0, 10) } : {}),
 })
 
-export function managerTools(deps: { home: Home; registry: Registry; tasks: Tasks; supervisor: Supervisor; routines: Routines; connectorNames?: string[]; rename?: (name: string) => string; staff?: Staff; settings?: Settings }): ToolDef[] {
+export function managerTools(deps: { home: Home; registry: Registry; tasks: Tasks; supervisor: Supervisor; routines: Routines; connectorNames?: string[]; trustedConnectors?: string[]; rename?: (name: string) => string; staff?: Staff; settings?: Settings }): ToolDef[] {
   const { home, registry, tasks, supervisor, routines } = deps
   const connectorNames = deps.connectorNames ?? []
+  const trusted = deps.trustedConnectors ?? []
   const project = (args: Args): ProjectView => {
     const ref = need(args, 'project')
     const p = registry.find(ref)
@@ -158,7 +159,11 @@ export function managerTools(deps: { home: Home; registry: Registry; tasks: Task
           labels: { type: 'array', items: { type: 'string' }, description: 'Short labels, like "bug" or "checkout".' },
           due: { type: 'string', description: 'A date it should be done by, as YYYY-MM-DD. Only when the owner named one.' },
           files: { type: 'array', items: { type: 'string' }, description: 'Paths of files the owner attached that the worker needs. The worker is told where they are.' },
-          connectors: { type: 'array', items: { type: 'string' }, description: `The owner's connectors this worker may use${connectorNames.length ? ` (available: ${connectorNames.join(', ')})` : ' (none are set up)'}. Give them only to tasks that need them. They work on every engine. A worker with connectors cannot run commands that change things or run tests: split such work into two tasks.` },
+          connectors: {
+            type: 'array',
+            items: { type: 'string' },
+            description: `The owner's connectors (tools from outside: a browser, their own systems, MCP servers) this worker may use${connectorNames.length ? `. Available: ${connectorNames.map((n) => `${n}${trusted.includes(n) ? ' (trusted)' : ''}`).join(', ')}` : ' (none are set up)'}. Leave it out and the worker gets the ones the owner set for the project. They work on every engine. With only trusted connectors a worker keeps everything else it can do. With one that is not marked trusted it cannot run commands that change things or run tests: split such work into two tasks, or tell the owner they can mark the connector as trusted in Settings, under Connectors.`,
+          },
           separate_copy: { type: 'boolean', description: 'Work on its own branch in its own folder (git worktree), so it can run at the same time as another task in the same repository.' },
           start: { type: 'boolean', description: 'false = put it in the backlog without starting it. Use it when the owner says "note", "later", "backlog" or "do not start yet".' },
         },

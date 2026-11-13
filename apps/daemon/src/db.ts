@@ -288,6 +288,11 @@ export const MIGRATIONS: string[] = [
     created_at integer not null
   );
   `,
+  // 13: a connector the owner trusts leaves a worker its shell; a project can name connectors every task in it gets.
+  `
+  alter table connectors add column trusted integer not null default 0;
+  alter table projects add column connectors text not null default '[]';
+  `,
 ]
 
 export class Db {

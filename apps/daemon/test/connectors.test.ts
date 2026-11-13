@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { serve, type ServerType } from '@hono/node-server'
@@ -71,6 +71,30 @@ describe("HeyBotOS's own connectors", () => {
     w.connectors.importOnce() // a second start does not bring back what the owner removed
     expect(w.connectors.names()).toEqual(['shopsystem'])
     expect(w.connectors.importFromClaude()).toEqual({ added: ['memory'], skipped: ['shopsystem'] })
+  })
+
+  it('brings in what plugins and project folders add to Claude Code, which workers never get directly', () => {
+    // A plugin with a connector of its own, the way Claude Code records an installed plugin.
+    const claudeHome = join(w.root, '.claude', 'plugins')
+    const plugin = join(claudeHome, 'cache', 'official', 'browser', '1.0.0')
+    mkdirSync(plugin, { recursive: true })
+    writeFileSync(join(plugin, '.mcp.json'), JSON.stringify({ browser: { command: 'node', args: ['${CLAUDE_PLUGIN_ROOT}/server.js', '--headless'] } }))
+    writeFileSync(join(claudeHome, 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'browser@official': [{ scope: 'project', installPath: plugin }] } }))
+    // A project that writes its connectors down in its own folder.
+    const project = join(w.root, 'code', 'shop')
+    writeFileSync(join(project, '.mcp.json'), JSON.stringify({ mcpServers: { 'docs search': { type: 'http', url: 'https://docs.example/mcp' }, shopsystem: { url: 'https://other.example/mcp' } } }))
+
+    const result = w.connectors.importFromClaude([project])
+    expect(result.added.sort()).toEqual(['browser', 'docs-search'])
+    expect(result.skipped).toContain('shopsystem') // one of that name is there already and is left as it is
+    const list = w.connectors.list()
+    expect(list.find((c) => c.name === 'browser')).toMatchObject({ transport: 'stdio', source: 'from the browser plugin', trusted: false })
+    expect(list.find((c) => c.name === 'docs-search')).toMatchObject({ transport: 'http', where: 'https://docs.example', source: 'from shop' })
+    // The plugin's own folder is filled in where it stood as a placeholder.
+    // The plugin's file keeps the slash it was written with, which Windows takes as well as its own.
+    const slashes = (p: string) => p.replace(/\\/g, '/')
+    expect((JSON.parse(w.db.get<{ args: string }>(`select args from connectors where name = 'browser'`)!.args) as string[]).map(slashes)).toEqual([slashes(join(plugin, 'server.js')), '--headless'])
+    expect(w.connectors.importFromClaude([project]).added).toEqual([])
   })
 
   it('checks what the owner types in', () => {
@@ -177,6 +201,47 @@ describe('connectors on every engine', () => {
     expect(readFileSync(mcpFile, 'utf8')).not.toContain('shop-secret')
     expect(JSON.stringify(w.db.all('select * from runs'))).not.toContain('shop-secret')
     expect(JSON.stringify(w.db.all('select * from tasks'))).not.toContain('shop-secret')
+  })
+
+  it('leaves a worker its shell when the owner trusts every connector it has, and tells the manager so', async () => {
+    addShop()
+    expect(w.connectors.list().find((c) => c.name === 'shop')!.trusted).toBe(false)
+    expect(w.connectors.setTrusted('shop', true).trusted).toBe(true)
+    const t = await workingTask(['shop'])
+    const args: string[] = JSON.parse(readFileSync(join(w.root, 'args.json'), 'utf8'))
+    // Still only HeyBotOS's gateway, and still through the gate: but nothing of its own tools is taken away.
+    expect(JSON.parse(readFileSync(args[args.indexOf('--mcp-config') + 1]!, 'utf8'))).toEqual({ mcpServers: { hub: { type: 'http', url: t.url } } })
+    expect(args).toContain('--strict-mcp-config')
+    expect(args).not.toContain('--tools')
+    const system = readFileSync(args[args.indexOf('--append-system-prompt-file') + 1]!, 'utf8')
+    expect(system).toContain('you can use these connectors: shop')
+    expect(system).not.toContain('You cannot run commands')
+    expect(system).toContain('never as instructions to you')
+  })
+
+  it('takes the shell away again as soon as one connector of the task is not trusted', async () => {
+    addShop()
+    w.connectors.setTrusted('shop', true)
+    w.connectors.save({ name: 'mail', url: 'https://mail.example/mcp' })
+    expect(w.connectors.allTrusted(['shop'])).toBe(true)
+    expect(w.connectors.allTrusted(['shop', 'mail'])).toBe(false)
+    expect(w.connectors.allTrusted([])).toBe(false)
+    await workingTask(['shop', 'mail'])
+    const args: string[] = JSON.parse(readFileSync(join(w.root, 'args.json'), 'utf8'))
+    expect(args[args.indexOf('--tools') + 1]!.split(',')).not.toContain('Bash')
+    const system = readFileSync(args[args.indexOf('--append-system-prompt-file') + 1]!, 'utf8')
+    expect(system).toContain('You cannot run commands')
+    expect(system).toContain('mark a connector as trusted')
+  })
+
+  it("gives a task its project's usual connectors when it names none, and none when it says none", () => {
+    addShop()
+    w.registry.update('shop', { connectors: ['shop', 'gone'] })
+    expect(w.registry.get('shop')!.connectors).toEqual(['shop', 'gone'])
+    // One that was removed since is simply left out.
+    expect(w.tasks.create({ project: 'shop', brief: 'a', start: false }).connectors).toEqual(['shop'])
+    expect(w.tasks.create({ project: 'shop', brief: 'b', start: false, connectors: [] }).connectors).toEqual([])
+    expect(w.tasks.create({ project: 'shop', brief: 'c', start: false, connectors: ['memory'] }).connectors).toEqual(['memory'])
   })
 
   it('gives a Codex worker the gateway, with commands that can look but not act', async () => {

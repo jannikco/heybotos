@@ -117,6 +117,8 @@ export interface ProjectView {
   /** The short name in front of every task number here, like BOT in BOT-12. */
   key: string
   starred: boolean
+  /** Connectors every task in this project gets, unless the task names its own. */
+  connectors: string[]
   /** How many tasks stand at each stage. */
   stages: Record<TaskStage, number>
   /** The latest change to any task here. */
@@ -448,6 +450,12 @@ export interface ConnectorView {
   source: string
   /** Signed in to through the browser. */
   signedIn: boolean
+  /**
+   * The owner trusts what it returns (a tool of their own, their own system). A worker that uses only
+   * trusted connectors keeps its shell; with any other it cannot run commands, because it reads text
+   * other people wrote.
+   */
+  trusted: boolean
   /** It turned HeyBotOS away: the owner should sign in to it (or give it a header). */
   needsSignIn: boolean
   /** Names of the tools it offered when last asked. */

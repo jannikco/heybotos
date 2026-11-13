@@ -42,6 +42,7 @@ async function act(name: string, what: () => Promise<void>): Promise<void> {
 
 const at = (c: ConnectorView, rest = '') => `/api/connectors/${encodeURIComponent(c.name)}${rest}`
 const check = (c: ConnectorView) => act(c.name, async () => putConnector((await api<{ connector: ConnectorView }>(at(c, '/check'), { method: 'POST' })).connector))
+const trust = (c: ConnectorView, trusted: boolean) => act(c.name, async () => putConnector((await api<{ connector: ConnectorView }>(at(c, '/trusted'), { method: 'POST', body: { trusted } })).connector))
 const toggle = (c: ConnectorView, enabled: boolean) => act(c.name, async () => putConnector((await api<{ connector: ConnectorView }>(at(c, '/enabled'), { method: 'POST', body: { enabled } })).connector))
 const signIn = (c: ConnectorView) =>
   act(c.name, async () => {
@@ -74,6 +75,13 @@ const allowedList = computed(() => settings.value?.gate.alwaysAllowTools ?? [])
 const allowed = (c: ConnectorView, tool: string) => allowedList.value.includes(`${c.name}/${tool}`) || allowedList.value.includes(`${c.name}/*`)
 const allowedCount = (c: ConnectorView) => c.asks.filter((t) => allowed(c, t)).length
 
+/** Everything this connector offers, now and later, without asking: right for a tool of your own, like a browser. */
+const allAllowed = (c: ConnectorView) => allowedList.value.includes(`${c.name}/*`)
+function allowAll(c: ConnectorView, on: boolean): void {
+  const others = allowedList.value.filter((t) => !t.startsWith(`${c.name}/`))
+  void change('tools', { gate: { alwaysAllowTools: on ? [...others, `${c.name}/*`] : others } })
+}
+
 function allow(c: ConnectorView, tool: string, on: boolean): void {
   // "All of this connector" is stored as one line; taking a single tool out of it spells the rest out.
   const mine = new Set(c.asks.filter((t) => allowed(c, t)))
@@ -89,7 +97,16 @@ const asks = (c: ConnectorView) => c.asks.filter(match)
 
 // ── adding one ──
 const dialog = ref<HTMLDialogElement | null>(null)
-const form = reactive({ name: '', target: '', keys: '' })
+const form = reactive({ name: '', target: '', keys: '', kind: 'words' as 'tool' | 'system' | 'words' })
+/**
+ * What a connector is decides two things: whether a worker that uses it keeps its shell (only when
+ * you trust what the connector returns), and whether its calls that change something wait for a yes.
+ */
+const KINDS: Array<{ id: 'tool' | 'system' | 'words'; title: string; hint: string }> = [
+  { id: 'tool', title: 'A tool of mine', hint: 'A browser to drive, a helper on this computer. Workers use all of it without asking, and keep their shell.' },
+  { id: 'system', title: 'A system of mine', hint: 'Your shop, your own product. Workers keep their shell; calls that change something wait for your yes.' },
+  { id: 'words', title: "Other people's words", hint: 'Mail, tickets, customer records. A worker that reads them cannot run commands, so nothing it reads can make it act.' },
+]
 const adding = ref(false)
 const formBad = ref('')
 const isUrl = computed(() => /^https?:\/\//i.test(form.target.trim()))
@@ -117,13 +134,17 @@ async function add(): Promise<void> {
   try {
     const target = form.target.trim()
     const parts = (target.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((w) => w.replace(/^(["'])(.*)\1$/, '$2'))
-    const body = isUrl.value ? { name: form.name, url: target, headers: pairs(form.keys, ':') } : { name: form.name, command: parts[0] ?? '', args: parts.slice(1), env: pairs(form.keys, '=') }
+    const trusted = form.kind !== 'words'
+    const body = isUrl.value ? { name: form.name, url: target, headers: pairs(form.keys, ':'), trusted } : { name: form.name, command: parts[0] ?? '', args: parts.slice(1), env: pairs(form.keys, '='), trusted }
     const { connector } = await api<{ connector: ConnectorView }>('/api/connectors', { method: 'POST', body })
     putConnector(connector)
+    // A tool of your own is used without asking: everything it offers is allowed.
+    if (form.kind === 'tool' && !allowedList.value.includes(`${connector.name}/*`)) await change('tools', { gate: { alwaysAllowTools: [...allowedList.value, `${connector.name}/*`] } })
     note.value = connector.error ? `${connector.name} is saved, but it did not answer: ${connector.error}` : `${connector.name} is connected, with ${connector.tools.length} tools. Every engine can use it now.`
     form.name = ''
     form.target = ''
     form.keys = ''
+    form.kind = 'words'
     dialog.value?.close()
   } catch (e) {
     formBad.value = (e as ApiError).message
@@ -140,7 +161,7 @@ async function bringIn(): Promise<void> {
   try {
     const res = await api<{ added: string[]; list: ConnectorView[] }>('/api/connectors/import', { method: 'POST' })
     list.value = res.list
-    note.value = res.added.length ? `Brought in ${res.added.join(', ')}.` : 'Nothing new in Claude Code.'
+    note.value = res.added.length ? `Brought in ${res.added.join(', ')}. Open one to say whether workers keep their shell with it.` : 'Nothing new in Claude Code, its plugins or your project folders.'
     dialog.value?.close()
   } catch (e) {
     formBad.value = (e as ApiError).message
@@ -155,7 +176,7 @@ async function bringIn(): Promise<void> {
     <div class="flex flex-wrap items-end gap-x-4 gap-y-3">
       <div class="min-w-0 flex-1">
         <h2 id="cn-title" class="pane-title">Connectors</h2>
-        <p class="pane-lede">Connect a system here once. Workers on Claude, Codex and Grok all reach it through HeyBotOS, which keeps the keys to itself. Looking things up goes straight through; anything that changes something waits for your yes.</p>
+        <p class="pane-lede">What workers can reach from outside (a browser to drive, your own systems, any MCP server) is set up here, once. Workers do not get the connectors or plugins of Claude Code itself; bring those in with the button. Workers on Claude, Codex and Grok all reach a connector through HeyBotOS, which keeps the keys to itself. Looking things up goes straight through; anything that changes something waits for your yes.</p>
       </div>
       <button type="button" class="btn btn-primary" @click="startAdding">Add connector</button>
     </div>
@@ -170,7 +191,7 @@ async function bringIn(): Promise<void> {
             <button type="button" class="opener" :aria-expanded="open === c.name" :aria-label="`${c.name}, ${c.where}`" @click="show(c)">
               <span class="min-w-0 flex-1">
                 <span class="block truncate font-semibold" :class="c.enabled ? '' : 'text-ink-3'">{{ c.name }}</span>
-                <span class="text-ink-3 block truncate text-xs">{{ c.where }}</span>
+                <span class="text-ink-3 block truncate text-xs">{{ c.where }}{{ c.trusted ? ', trusted' : '' }}</span>
               </span>
               <svg viewBox="0 0 12 12" class="arrow" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 3 7.5 6 4.5 9" /></svg>
             </button>
@@ -184,6 +205,15 @@ async function bringIn(): Promise<void> {
 
           <div v-if="open === c.name" class="detail">
             <p v-if="c.enabled && c.error" :class="c.needsSignIn ? 'text-ink-2' : 'text-bad'" role="alert">{{ c.error }}</p>
+            <div class="trust">
+              <div class="min-w-0 flex-1">
+                <p class="set-title">Workers keep their shell with it</p>
+                <p class="set-hint">
+                  {{ c.trusted ? 'You trust what it returns, so a worker that uses it can still run commands and tests.' : 'A worker that uses it cannot run commands, because what it returns may be written by other people and could try to steer the worker. Switch this on for a tool or a system of your own.' }}
+                </p>
+              </div>
+              <UiSwitch :model-value="c.trusted" :label="`Workers keep their shell with ${c.name}`" :disabled="busy[c.name]" @update:model-value="(on) => trust(c, on)" />
+            </div>
             <template v-if="c.tools.length">
               <input v-if="c.tools.length > 12" v-model="find" class="field mb-3 max-w-64" type="search" placeholder="Find a tool" :aria-label="`Find a tool in ${c.name}`" />
               <div v-if="reads(c).length" role="group" :aria-label="`${c.name}: looks things up`">
@@ -191,8 +221,10 @@ async function bringIn(): Promise<void> {
                 <p class="mt-1.5 flex flex-wrap gap-1.5"><span v-for="t in reads(c)" :key="t" class="chip font-mono">{{ t }}</span></p>
               </div>
               <div v-if="asks(c).length" class="mt-4 first:mt-0" role="group" :aria-label="`${c.name}: changes things`">
-                <p class="sub">
-                  Changes things <span class="text-ink-3 font-normal">{{ allowedCount(c) ? `${allowedCount(c)} allowed without asking, the rest wait for your yes` : 'waits for your yes' }}</span>
+                <p class="sub flex items-center gap-3">
+                  <span class="min-w-0 flex-1">Changes things <span class="text-ink-3 font-normal">{{ allAllowed(c) ? 'all allowed without asking' : allowedCount(c) ? `${allowedCount(c)} allowed without asking, the rest wait for your yes` : 'waits for your yes' }}</span></span>
+                  <span class="text-ink-2 text-xs font-normal">Allow all</span>
+                  <UiSwitch :model-value="allAllowed(c)" :label="`Allow everything ${c.name} offers without asking`" @update:model-value="(on) => allowAll(c, on)" />
                 </p>
                 <ul class="tools">
                   <li v-for="t in asks(c)" :key="t">
@@ -217,7 +249,7 @@ async function bringIn(): Promise<void> {
     </div>
     <div v-else class="set-panel mt-2 px-6 py-10 text-center">
       <p class="text-lg font-semibold">No connectors yet</p>
-      <p class="text-ink-2 mx-auto mt-1 max-w-[44ch]">Add one, or bring in the ones Claude Code already has. Every engine can use them from then on.</p>
+      <p class="text-ink-2 mx-auto mt-1 max-w-[44ch]">Add one, or bring in the ones Claude Code already has, with what its plugins and your project folders add. Every engine can use them from then on.</p>
       <p class="mt-4 flex justify-center gap-2"><button type="button" class="btn" :disabled="adding" @click="bringIn">Bring in from Claude Code</button><button type="button" class="btn btn-primary" @click="startAdding">Add connector</button></p>
     </div>
 
@@ -230,6 +262,18 @@ async function bringIn(): Promise<void> {
         <p id="cn-name-hint" class="text-ink-3 mt-1.5 text-xs">Spaces are fine. Workers see the name with dashes: "My CRM" is kept as "My-CRM".</p>
         <label for="cn-target" class="mt-4 block text-sm font-medium">Web address, or the command that starts it</label>
         <input id="cn-target" v-model="form.target" class="field mt-1.5 font-mono text-xs" placeholder="https://example.com/mcp   or   npx -y some-mcp-server" required autocomplete="off" spellcheck="false" />
+        <fieldset class="mt-4">
+          <legend class="text-sm font-medium">What is it?</legend>
+          <div class="mt-1.5 grid gap-1.5">
+            <label v-for="k in KINDS" :key="k.id" class="kind" :class="{ on: form.kind === k.id }">
+              <input v-model="form.kind" type="radio" name="cn-kind" class="accent-signal mt-0.5 size-4" :value="k.id" />
+              <span class="min-w-0">
+                <span class="block font-medium">{{ k.title }}</span>
+                <span class="text-ink-2 block text-xs leading-snug">{{ k.hint }}</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
         <label for="cn-keys" class="mt-4 block text-sm font-medium">{{ isUrl ? 'Sign-in headers, one per line (optional)' : 'Settings it needs in its environment, one per line (optional)' }}</label>
         <textarea id="cn-keys" v-model="form.keys" class="field mt-1.5 min-h-16 font-mono text-xs" spellcheck="false" autocomplete="off" :placeholder="isUrl ? 'Authorization: Bearer …' : 'NAME=value'"></textarea>
         <p class="text-ink-3 mt-1.5 text-xs">Kept in HeyBotOS's own database on this computer and never shown again, here or to a worker.</p>
@@ -246,6 +290,28 @@ async function bringIn(): Promise<void> {
 </template>
 
 <style scoped>
+.trust {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.6rem;
+  background: var(--sunken);
+}
+.kind {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.kind.on {
+  border-color: color-mix(in srgb, var(--signal) 70%, transparent);
+  background: color-mix(in srgb, var(--signal) 7%, transparent);
+}
 .tile {
   display: grid;
   place-items: center;

@@ -3,7 +3,7 @@
 // in the daemon; a worker only ever holds a pass for its own run.
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import type { ConnectorView } from '@heybotos/protocol'
 import type { Db } from '../db.ts'
 import type { Home } from '../home.ts'
@@ -26,6 +26,7 @@ interface Row {
   checked_at: number | null
   created_at: number
   oauth: string | null
+  trusted: number
 }
 
 interface PendingSignIn {
@@ -127,6 +128,7 @@ export class ConnectorRegistry {
       enabled: r.enabled === 1,
       source: r.source,
       signedIn: r.oauth !== null,
+      trusted: r.trusted === 1,
       needsSignIn: r.transport === 'http' && r.enabled === 1 && /HTTP 401|has run out/.test(r.last_error ?? ''),
       tools: tools.map((t) => t.name),
       asks: tools.map((t) => t.name).filter((n) => !connectorReads(n)),
@@ -152,7 +154,7 @@ export class ConnectorRegistry {
     return clean
   }
 
-  save(input: { name: string; url?: string; headers?: Record<string, string>; command?: string; args?: string[]; env?: Record<string, string>; enabled?: boolean; source?: string }): ConnectorView {
+  save(input: { name: string; url?: string; headers?: Record<string, string>; command?: string; args?: string[]; env?: Record<string, string>; enabled?: boolean; source?: string; trusted?: boolean }): ConnectorView {
     const name = connectorName(input.name)
     if (!name) throw new Error('A connector name needs at least one letter or digit, like "shop" or "My CRM".')
     if (RESERVED.has(name.toLowerCase())) throw new Error(`"${name}" is a name HeyBotOS uses itself. Pick another.`)
@@ -164,8 +166,21 @@ export class ConnectorRegistry {
     const fields = [url ? 'http' : 'stdio', url, JSON.stringify(input.headers ?? (existing ? JSON.parse(existing.headers) : {})), command, JSON.stringify(input.args ?? (existing ? JSON.parse(existing.args) : [])), JSON.stringify(input.env ?? (existing ? JSON.parse(existing.env) : {})), (input.enabled ?? (existing ? existing.enabled === 1 : true)) ? 1 : 0] as const
     if (existing) this.db.run('update connectors set transport = ?, url = ?, headers = ?, command = ?, args = ?, env = ?, enabled = ?, oauth = case when url is ? then oauth else null end where name = ?', ...fields, url, name)
     else this.db.run('insert into connectors (transport, url, headers, command, args, env, enabled, name, source, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', ...fields, name, input.source ?? 'added here', Date.now())
+    if (input.trusted !== undefined) this.db.run('update connectors set trusted = ? where name = ?', input.trusted ? 1 : 0, name)
     this.drop(name)
     return this.view(this.row(name)!)
+  }
+
+  /** Whether the owner trusts what this connector returns enough to leave a worker its shell. */
+  setTrusted(name: string, trusted: boolean): ConnectorView {
+    if (!this.row(name)) throw new Error('No such connector.')
+    this.db.run('update connectors set trusted = ? where name = ?', trusted ? 1 : 0, name)
+    return this.view(this.row(name)!)
+  }
+
+  /** True when every one of these connectors is trusted (and there is at least one). */
+  allTrusted(names: string[]): boolean {
+    return names.length > 0 && names.every((n) => this.row(n)?.trusted === 1)
   }
 
   setEnabled(name: string, enabled: boolean): ConnectorView {
@@ -184,31 +199,60 @@ export class ConnectorRegistry {
     this.clients.delete(name)
   }
 
-  /** Bring over the connectors already set up in Claude Code. Ones with the same name here are left as they are. */
-  importFromClaude(): { added: string[]; skipped: string[] } {
+  /**
+   * Bring over the connectors already set up for Claude Code: the owner's own, the ones their plugins
+   * bring (a browser, a framework's helper), and the ones written down in a project's folder. Ones
+   * with the same name here are left as they are. Workers never get Claude Code's own connectors
+   * directly; this is how they reach them.
+   */
+  importFromClaude(projectDirs: string[] = []): { added: string[]; skipped: string[] } {
     const f = this.home.config.connectorsFile
     const path = f === '~' ? homedir() : f.startsWith('~/') ? join(homedir(), f.slice(2)) : f
     const added: string[] = []
     const skipped: string[] = []
-    if (!existsSync(path)) return { added, skipped }
-    let servers: Record<string, Record<string, any>> = {}
-    try {
-      servers = (JSON.parse(readFileSync(path, 'utf8')) as { mcpServers?: Record<string, Record<string, any>> }).mcpServers ?? {}
-    } catch {
-      return { added, skipped }
-    }
-    for (const [given, s] of Object.entries(servers)) {
-      const name = connectorName(given)
-      if (!name || this.row(name) || s === null || typeof s !== 'object') {
-        skipped.push(given)
-        continue
-      }
+    type Defs = Record<string, Record<string, any>>
+    const read = (file: string): Record<string, any> | null => {
       try {
-        this.save({ name, url: typeof s.url === 'string' ? s.url : undefined, headers: s.headers ?? {}, command: typeof s.command === 'string' ? s.command : undefined, args: Array.isArray(s.args) ? s.args.map(String) : [], env: s.env ?? {}, source: 'from Claude Code' })
-        added.push(name)
+        return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as Record<string, any>) : null
       } catch {
-        skipped.push(given)
+        return null
       }
+    }
+    const take = (servers: unknown, source: string, root?: string) => {
+      if (servers === null || typeof servers !== 'object') return
+      // A plugin names its own folder with a placeholder.
+      const here = <T>(v: T): T => (root === undefined ? v : (JSON.parse(JSON.stringify(v).replaceAll('${CLAUDE_PLUGIN_ROOT}', JSON.stringify(root).slice(1, -1))) as T))
+      for (const [given, raw] of Object.entries(servers as Defs)) {
+        const name = connectorName(given)
+        if (!name || this.row(name) || added.includes(name) || raw === null || typeof raw !== 'object') {
+          if (!skipped.includes(given)) skipped.push(given)
+          continue
+        }
+        const s = here(raw)
+        try {
+          this.save({ name, url: typeof s.url === 'string' ? s.url : undefined, headers: s.headers ?? {}, command: typeof s.command === 'string' ? s.command : undefined, args: Array.isArray(s.args) ? s.args.map(String) : [], env: s.env ?? {}, source })
+          added.push(name)
+        } catch {
+          skipped.push(given)
+        }
+      }
+    }
+    const own = read(path)
+    take(own?.mcpServers, 'from Claude Code')
+    // Plugins: each installed one may bring connectors in a .mcp.json of its own.
+    const plugins = read(join(dirname(path), '.claude', 'plugins', 'installed_plugins.json'))?.plugins as Record<string, Array<{ installPath?: string }>> | undefined
+    for (const [id, installs] of Object.entries(plugins ?? {})) {
+      for (const install of Array.isArray(installs) ? installs : []) {
+        if (typeof install?.installPath !== 'string') continue
+        const file = read(join(install.installPath, '.mcp.json'))
+        take(file?.mcpServers ?? file, `from the ${id.split('@')[0]} plugin`, install.installPath)
+      }
+    }
+    // Projects: what a project's folder says, and what Claude Code keeps for that folder.
+    for (const dir of projectDirs) {
+      const file = read(join(dir, '.mcp.json'))
+      take(file?.mcpServers ?? null, `from ${basename(dir)}`)
+      take(own?.projects?.[dir]?.mcpServers, `from ${basename(dir)}`)
     }
     return { added, skipped }
   }
