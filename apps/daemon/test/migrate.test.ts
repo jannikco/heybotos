@@ -86,7 +86,8 @@ describe('carrying an old installation over', () => {
     expect(one<{ cwd: string }>(`select cwd from tasks where id = 't_near'`).cwd).toBe(`${old}-archive/x`)
     const run = one<{ cwd: string; stdout_path: string; extra_json: string; session_id: string | null }>(`select cwd, stdout_path, extra_json, session_id from runs where id = 'r_1'`)
     expect(run).toMatchObject({ cwd: join(next, 'worktrees', 't_wt'), stdout_path: join(next, 'state', 'runs', 'r_1', 'stdout.jsonl'), session_id: 's-1' })
-    expect(run.extra_json).toContain(join(next, 'worktrees', 't_wt'))
+    // Stored as JSON, where a path is written the way JSON writes it (a backslash doubled).
+    expect(JSON.parse(run.extra_json).systemPrompt).toBe(`You are in ${join(next, 'worktrees', 't_wt')}.`)
     expect(one<{ session_id: string | null }>(`select session_id from runs where id = 'r_m'`).session_id).toBeNull()
     const file = one<{ path: string }>('select path from files')
     expect(file.path).toBe(join(next, 'files', 'f_aaaaaaaaaaaa', 'shot.png'))
