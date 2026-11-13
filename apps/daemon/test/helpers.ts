@@ -171,9 +171,11 @@ export function makeWorld(before?: (home: Home) => void): World {
       }
       db.close()
       try {
-        rmSync(root, { recursive: true, force: true, maxRetries: WIN ? 20 : 0, retryDelay: 100 })
+        rmSync(root, { recursive: true, force: true, maxRetries: WIN ? 3 : 0, retryDelay: 50 })
       } catch (e) {
-        // Windows will not remove a folder while a program that is just ending still has a file open in it.
+        // Windows will not remove a folder while a file in it is open: a program that is just ending, or
+        // (on the desktop app's runtime) the database for a moment after it was closed. The folder is
+        // in the system's temporary files, so it is left there rather than waited for.
         if (!WIN) throw e
       }
     },

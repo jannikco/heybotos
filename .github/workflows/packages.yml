@@ -36,14 +36,6 @@ jobs:
         run: node node_modules/electron/install.js
         working-directory: apps/desktop
       - run: pnpm build
-      - name: Time git on the app's runtime (temporary)
-        if: matrix.system == 'win'
-        shell: pwsh
-        run: |
-          node apps/desktop/scripts/debug-async.mjs
-          $env:ELECTRON_RUN_AS_NODE = "1"
-          & apps/desktop/node_modules/electron/dist/electron.exe apps/desktop/scripts/debug-async.mjs
-        timeout-minutes: 5
       - name: Run the service's tests on the app's own runtime
         run: node apps/desktop/scripts/test-on-runtime.mjs
         timeout-minutes: 15

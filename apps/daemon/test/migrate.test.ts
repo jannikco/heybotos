@@ -49,7 +49,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   try {
-    rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+    rmSync(home, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 })
   } catch (e) {
     // Windows will not remove a folder while something that is just ending still has a file open in it.
     if (process.platform !== 'win32') throw e
