@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Auth } from '../src/http/auth.ts'
 import { createApp } from '../src/http/app.ts'
 import { HttpClient } from '../src/connect/client.ts'
+import { connectorName } from '../src/connect/registry.ts'
 import { watchInbox } from '../src/notify.ts'
 import { FIXTURES, makeWorld, until, variant, type World } from './helpers.ts'
 
@@ -73,8 +74,17 @@ describe("HeyBotOS's own connectors", () => {
   })
 
   it('checks what the owner types in', () => {
-    expect(() => w.connectors.save({ name: 'my shop', url: 'https://x.example/mcp' })).toThrow(/letters and digits/)
-    expect(() => w.connectors.save({ name: 'my--shop', url: 'https://x.example/mcp' })).toThrow(/letters and digits/)
+    // A name may be typed with spaces or anything else: it is kept in the form every engine takes.
+    expect(w.connectors.save({ name: '  My shop (prod) ', url: 'https://x.example/mcp' }).name).toBe('My-shop-prod')
+    expect(w.connectors.save({ name: 'my shop', url: 'https://x.example/mcp' }).name).toBe('my-shop')
+    expect(connectorName('my--shop')).toBe('my-shop')
+    expect(connectorName('my__shop_')).toBe('my_shop')
+    expect(connectorName('Blå køer & æbler')).toBe('Blaa-koeer-aebler')
+    expect(connectorName('café – crm')).toBe('cafe-crm')
+    expect(connectorName(`${'a'.repeat(39)} b c`)).toBe('a'.repeat(39))
+    expect(() => w.connectors.save({ name: ' ?! ', url: 'https://x.example/mcp' })).toThrow(/at least one letter or digit/)
+    w.connectors.remove('My-shop-prod')
+    w.connectors.remove('my-shop')
     expect(() => w.connectors.save({ name: 'hub', url: 'https://x.example/mcp' })).toThrow(/HeyBotOS uses itself/)
     expect(() => w.connectors.save({ name: 'crm' })).toThrow(/needs a web address, or a command/)
     expect(() => w.connectors.save({ name: 'crm', url: 'ftp://x.example' })).toThrow(/must start with http/)

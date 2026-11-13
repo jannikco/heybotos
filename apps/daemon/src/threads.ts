@@ -24,7 +24,12 @@ export class Threads {
 
   private one(id: string, name: string, kind: ThreadView['kind']): ThreadView | null {
     const read = this.readAt(id)
-    const msg = this.db.get<{ text: string; created_at: number; role: string }>('select text, created_at, role from messages where thread = ? order by id desc limit 1', id)
+    const msg = this.db.get<{ id: number; text: string; created_at: number; role: string }>('select id, text, created_at, role from messages where thread = ? order by id desc limit 1', id)
+    if (msg && !msg.text.trim()) {
+      // A message that is only attachments: say so, instead of showing nothing.
+      const n = this.db.get<{ n: number }>(`select count(*) as n from file_links where owner_kind = 'message' and owner_id = ?`, String(msg.id))?.n ?? 0
+      if (n) msg.text = n === 1 ? 'Sent a file' : `Sent ${n} files`
+    }
     const unreadMessages = this.db.get<{ n: number }>(`select count(*) as n from messages where thread = ? and role != 'user' and created_at > ?`, id, read)?.n ?? 0
     let lastText = msg ? `${msg.role === 'user' ? 'You: ' : ''}${msg.text}` : ''
     let lastAt = msg?.created_at ?? 0

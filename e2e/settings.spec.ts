@@ -77,22 +77,23 @@ test('connectors: see which ones answer and what they offer, add, switch off, an
   await expect(crm.getByRole('button', { name: 'Check', exact: true })).toBeEnabled()
   await expect(crm.getByText('Not answering')).toBeVisible()
 
-  // Adding one happens in a dialog. A name the engines could not handle is refused, in words.
+  // Adding one happens in a dialog. A name with nothing to go by is refused, in words.
   const form = page.getByRole('dialog', { name: 'Add a connector' })
   await expect(form).toBeHidden()
   await panel.getByRole('button', { name: 'Add connector' }).click()
-  await form.getByLabel('Name').fill('my__crm')
+  await form.getByLabel('Name').fill('?!')
   await form.getByLabel('Web address, or the command that starts it').fill('http://127.0.0.1:9/nothing')
   await form.getByRole('button', { name: 'Add connector' }).click()
-  await expect(form.getByRole('alert')).toHaveText('A connector name is letters and digits, with single dashes or underscores between them, like "shop" or "my-crm".')
+  await expect(form.getByRole('alert')).toHaveText('A connector name needs at least one letter or digit, like "shop" or "My CRM".')
   await expect(rows).toHaveCount(2)
 
   // A good name is saved even when nothing answers there yet; then it is removed again.
-  await form.getByLabel('Name').fill('notes')
+  // Typed with a space, it is kept with a dash: the form every engine takes.
+  await form.getByLabel('Name').fill('team notes')
   await form.getByRole('button', { name: 'Add connector' }).click()
   await expect(form).toBeHidden()
-  await expect(panel.getByRole('status')).toContainText('notes is saved, but it did not answer')
-  const notes = row('notes')
+  await expect(panel.getByRole('status')).toContainText('team-notes is saved, but it did not answer')
+  const notes = row('team-notes')
   await expect(notes.getByText('Not answering')).toBeVisible()
   await expect(panel.getByText('1 of 3 answering')).toBeVisible()
   // The dialog opens empty the next time.
@@ -100,9 +101,9 @@ test('connectors: see which ones answer and what they offer, add, switch off, an
   await expect(form.getByLabel('Name')).toHaveValue('')
   await form.getByRole('button', { name: 'Cancel' }).click()
   await expect(form).toBeHidden()
-  await notes.locator(opener('notes')).click()
+  await notes.locator(opener('team-notes')).click()
   page.once('dialog', (d) => {
-    expect(d.message()).toContain('Remove the connector "notes"?')
+    expect(d.message()).toContain('Remove the connector "team-notes"?')
     void d.accept()
   })
   await notes.getByRole('button', { name: 'Remove' }).click()

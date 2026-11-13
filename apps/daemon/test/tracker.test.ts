@@ -466,5 +466,9 @@ describe('over HTTP', () => {
     const t = w.tasks.create({ project: 'shop', brief: 'From the brief.', start: false, files: [file.path] }, 'manager')
     expect(w.tasks.detail(t.id)!.files.map((f) => f.id)).toEqual([file.id])
     expect((await send('POST', '/api/chat', { text: ' ' })).status).toBe(400)
+    // Files alone are a message too, and the list of conversations says what it was.
+    const alone = await upload('sketch.png', 'png', 'image/png')
+    expect((await send('POST', '/api/chat', { text: '', thread: 'shop', files: [alone.id] })).status).toBe(201)
+    expect(w.threads.list('Manager').find((t) => t.id === 'shop')!.lastText).toBe('You: Sent a file')
   })
 })

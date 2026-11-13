@@ -5,7 +5,7 @@ import { ref } from 'vue'
 import type { FileView } from '@heybotos/protocol'
 import { sizeWords } from '../../tracker'
 
-defineProps<{ files: FileView[]; removable?: boolean; small?: boolean }>()
+defineProps<{ files: FileView[]; removable?: boolean; small?: boolean; end?: boolean }>()
 defineEmits<{ remove: [id: string] }>()
 
 const shown = ref<FileView | null>(null)
@@ -18,7 +18,7 @@ const ext = (name: string) => (name.includes('.') ? name.split('.').pop()!.slice
 </script>
 
 <template>
-  <ul v-if="files.length" class="files" :class="{ small }" aria-label="Attached files">
+  <ul v-if="files.length" class="files" :class="{ small, end }" aria-label="Attached files">
     <li v-for="f in files" :key="f.id" class="file" :class="{ pic: f.image }">
       <button v-if="f.image" type="button" class="thumb" :aria-label="`Open ${f.name}`" @click="show(f)">
         <img :src="`/api/files/${f.id}`" :alt="f.name" loading="lazy" />
@@ -51,6 +51,9 @@ const ext = (name: string) => (name.includes('.') ? name.split('.').pop()!.slice
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+.files.end {
+  justify-content: flex-end;
 }
 .file {
   position: relative;

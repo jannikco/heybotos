@@ -37,7 +37,24 @@ interface PendingSignIn {
   at: number
 }
 
-const NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/
+/**
+ * The name a connector is kept under, made from what the owner typed. It becomes part of the name of
+ * every tool the connector offers, and the engines take only letters, digits and single dashes or
+ * underscores there (Grok drops a tool with a double underscore). So spaces and anything else turn
+ * into one dash: "My CRM (prod)" is kept as "My-CRM-prod".
+ */
+export function connectorName(typed: string): string {
+  const tidy = (t: string) => t.replace(/^[-_]+|[-_]+$/g, '')
+  const plain = typed
+    .replace(/[æÆ]/g, 'ae')
+    .replace(/[øØ]/g, 'oe')
+    .replace(/[åÅ]/g, 'aa')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9_-]+/g, '-')
+    .replace(/[-_]{2,}/g, (run) => (run.includes('-') ? '-' : '_'))
+  return tidy(tidy(plain).slice(0, 40))
+}
 const RESERVED = new Set(['hub', 'heybotos'])
 
 export class ConnectorRegistry {
@@ -136,8 +153,8 @@ export class ConnectorRegistry {
   }
 
   save(input: { name: string; url?: string; headers?: Record<string, string>; command?: string; args?: string[]; env?: Record<string, string>; enabled?: boolean; source?: string }): ConnectorView {
-    const name = input.name.trim()
-    if (!NAME.test(name) || /__|--|[-_]$/.test(name)) throw new Error('A connector name is letters and digits, with single dashes or underscores between them, like "shop" or "my-crm".')
+    const name = connectorName(input.name)
+    if (!name) throw new Error('A connector name needs at least one letter or digit, like "shop" or "My CRM".')
     if (RESERVED.has(name.toLowerCase())) throw new Error(`"${name}" is a name HeyBotOS uses itself. Pick another.`)
     const url = input.url?.trim() || null
     const command = input.command?.trim() || null
@@ -180,16 +197,17 @@ export class ConnectorRegistry {
     } catch {
       return { added, skipped }
     }
-    for (const [name, s] of Object.entries(servers)) {
-      if (this.row(name) || s === null || typeof s !== 'object') {
-        skipped.push(name)
+    for (const [given, s] of Object.entries(servers)) {
+      const name = connectorName(given)
+      if (!name || this.row(name) || s === null || typeof s !== 'object') {
+        skipped.push(given)
         continue
       }
       try {
         this.save({ name, url: typeof s.url === 'string' ? s.url : undefined, headers: s.headers ?? {}, command: typeof s.command === 'string' ? s.command : undefined, args: Array.isArray(s.args) ? s.args.map(String) : [], env: s.env ?? {}, source: 'from Claude Code' })
         added.push(name)
       } catch {
-        skipped.push(name)
+        skipped.push(given)
       }
     }
     return { added, skipped }

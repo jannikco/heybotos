@@ -20,4 +20,11 @@ declare global {
 window.heybotosDesktop?.onNavigate((path) => void router.push(path))
 window.heybotosDesktop?.onCommand((name) => command(name))
 
+// A file dropped beside the place that takes it would otherwise replace the whole page with that file.
+for (const type of ['dragover', 'drop'] as const) {
+  window.addEventListener(type, (e) => {
+    if ([...(e.dataTransfer?.types ?? [])].includes('Files')) e.preventDefault()
+  })
+}
+
 createApp(App).use(router).mount('#app')

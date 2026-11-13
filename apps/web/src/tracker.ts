@@ -211,23 +211,29 @@ export async function uploadFile(file: File): Promise<FileView> {
 /** Files waiting to be attached to something that is being written: a new task, a comment, a message. */
 export function useUploads() {
   const files = ref<FileView[]>([])
-  const busy = ref(0)
+  /** What is being uploaded right now, by name. */
+  const waiting = ref<Array<{ key: number; name: string }>>([])
+  const busy = computed(() => waiting.value.length)
   const problem = ref('')
+  let n = 0
   async function add(list: Iterable<File>): Promise<FileView[]> {
+    const mine = [...list].map((file) => ({ key: ++n, name: file.name || 'Pasted picture', file }))
     const added: FileView[] = []
     problem.value = ''
-    for (const f of list) {
-      busy.value++
-      try {
-        const up = await uploadFile(f)
-        files.value = [...files.value, up]
-        added.push(up)
-      } catch (e) {
-        problem.value = (e as ApiError).message
-      } finally {
-        busy.value--
-      }
-    }
+    waiting.value = [...waiting.value, ...mine.map(({ key, name }) => ({ key, name }))]
+    await Promise.all(
+      mine.map(async ({ key, file }) => {
+        try {
+          const up = await uploadFile(file)
+          files.value = [...files.value, up]
+          added.push(up)
+        } catch (e) {
+          problem.value = (e as ApiError).message
+        } finally {
+          waiting.value = waiting.value.filter((w) => w.key !== key)
+        }
+      }),
+    )
     return added
   }
   const remove = (id: string) => (files.value = files.value.filter((f) => f.id !== id))
@@ -245,5 +251,5 @@ export function useUploads() {
     e.preventDefault()
     void add(dropped)
   }
-  return { files, busy, problem, add, remove, clear, onPaste, onDrop, ids: computed(() => files.value.map((f) => f.id)) }
+  return { files, waiting, busy, problem, add, remove, clear, onPaste, onDrop, ids: computed(() => files.value.map((f) => f.id)) }
 }

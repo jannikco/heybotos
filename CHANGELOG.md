@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 (beta)
+
+- Attach files to a message: pick them with the paperclip, drop them on the conversation, or paste a
+  screenshot. The manager gets them with the message and can hand them on to a worker.
+- The message field grows with what you write.
+- A connector name can be typed with spaces: "My CRM" is kept as "My-CRM", the form every engine takes.
+- The app carries its build time as its date, so an update shows its own icon in the Dock.
+
 ## 0.3.0 (beta)
 
 The first public version, and a beta: expect rough edges and changes between versions.

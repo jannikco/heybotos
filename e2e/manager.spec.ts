@@ -113,3 +113,56 @@ test('set up a routine, run it now, switch it off, remove it', async ({ page }) 
   await page.getByRole('button', { name: 'Remove' }).click()
   await expect(page.getByText('No routines yet.')).toBeVisible()
 })
+
+test('attach files to a message: picked or pasted, shown before sending, and kept on the message', async ({ page }) => {
+  await signIn(page)
+  const chat = conversation(page, 'Manager')
+  const box = chat.getByLabel('Message to the manager')
+  const send = chat.getByRole('button', { name: 'Send' })
+  await expect(chat.getByRole('button', { name: 'Attach files' })).toBeVisible()
+  await expect(send).toBeDisabled()
+
+  // Two files are picked: they wait in the field, and one can be taken off again.
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64')
+  await chat.locator('input[type=file]').setInputFiles([
+    { name: 'sketch.png', mimeType: 'image/png', buffer: pixel },
+    { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('Ship on Friday.') },
+  ])
+  const waiting = chat.locator('form').getByRole('list', { name: 'Attached files' })
+  await expect(waiting.getByRole('listitem')).toHaveCount(2)
+  await expect(waiting.getByRole('button', { name: 'Open sketch.png' })).toBeVisible()
+  await waiting.getByRole('button', { name: 'Remove notes.txt' }).click()
+  await expect(waiting.getByRole('listitem')).toHaveCount(1)
+
+  // A copied file that is pasted into the field is attached too, and the text stays as it was.
+  await box.fill('Use these.')
+  await box.evaluate((el) => {
+    const data = new DataTransfer()
+    data.items.add(new File(['Brief'], 'brief.pdf', { type: 'application/pdf' }))
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+  })
+  await expect(waiting.getByRole('link', { name: /Download brief\.pdf/ })).toBeVisible()
+  await expect(box).toHaveValue('Use these.')
+
+  // Sent: the field is empty again and the message carries both files, also after a reload.
+  await send.click()
+  const said = chat.getByRole('article', { name: 'You said' }).filter({ hasText: 'Use these.' })
+  await expect(said.getByRole('listitem')).toHaveCount(2)
+  await expect(chat.locator('form').getByRole('list', { name: 'Attached files' })).toHaveCount(0)
+  await expect(box).toHaveValue('')
+  await page.reload()
+  await expect(said.getByRole('button', { name: 'Open sketch.png' })).toBeVisible()
+  await expect(said.getByRole('link', { name: /Download brief\.pdf/ })).toBeVisible()
+  // The picture opens large, and the file itself is what was sent.
+  await said.getByRole('button', { name: 'Open sketch.png' }).click()
+  await expect(page.getByRole('dialog', { name: 'Picture' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  const got = await page.request.get(await said.getByRole('link', { name: /Download brief\.pdf/ }).getAttribute('href').then((h) => h!))
+  expect(await got.text()).toBe('Brief')
+
+  // Files alone are a message too.
+  await chat.locator('input[type=file]').setInputFiles([{ name: 'later.txt', mimeType: 'text/plain', buffer: Buffer.from('x') }])
+  await expect(send).toBeEnabled()
+  await send.click()
+  await expect(chat.getByRole('article', { name: 'You said' }).filter({ has: page.getByRole('link', { name: /Download later\.txt/ }) })).toBeVisible()
+})

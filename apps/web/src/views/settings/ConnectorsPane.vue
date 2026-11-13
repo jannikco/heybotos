@@ -226,7 +226,8 @@ async function bringIn(): Promise<void> {
         <h2 id="cn-add-title" class="text-2xl">Add a connector</h2>
         <p class="text-ink-2 mt-1.5 max-w-[52ch]">Give it a short name and say where it lives. HeyBotOS asks it what it offers and makes that available to every engine.</p>
         <label for="cn-name" class="mt-5 block text-sm font-medium">Name</label>
-        <input id="cn-name" v-model="form.name" class="field mt-1.5" placeholder="shop" required autocomplete="off" spellcheck="false" />
+        <input id="cn-name" v-model="form.name" class="field mt-1.5" placeholder="shop" required autocomplete="off" spellcheck="false" aria-describedby="cn-name-hint" />
+        <p id="cn-name-hint" class="text-ink-3 mt-1.5 text-xs">Spaces are fine. Workers see the name with dashes: "My CRM" is kept as "My-CRM".</p>
         <label for="cn-target" class="mt-4 block text-sm font-medium">Web address, or the command that starts it</label>
         <input id="cn-target" v-model="form.target" class="field mt-1.5 font-mono text-xs" placeholder="https://example.com/mcp   or   npx -y some-mcp-server" required autocomplete="off" spellcheck="false" />
         <label for="cn-keys" class="mt-4 block text-sm font-medium">{{ isUrl ? 'Sign-in headers, one per line (optional)' : 'Settings it needs in its environment, one per line (optional)' }}</label>
