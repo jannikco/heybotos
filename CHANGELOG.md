@@ -1,6 +1,6 @@
 # Changelog
 
-## Not released yet
+## 0.5.0 (beta)
 
 - **HeyBotOS updates itself.** It looks for a newer version now and then and says so in the sidebar. In
   Settings, General, Version you see what is new and choose "Update and restart": the app fetches the new
