@@ -1,6 +1,6 @@
 # Changelog
 
-## Not released yet
+## 0.4.0 (beta)
 
 - **Linux.** The desktop app as a `.deb` (Debian, Ubuntu, Mint) and an AppImage, for x64 and arm64. The
   background service is a systemd user service; workers' shells keep the gate's wrappers in front in bash
