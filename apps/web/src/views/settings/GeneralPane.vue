@@ -19,7 +19,7 @@ const look = computed({ get: () => themeChoice.value, set: (c) => setTheme(c) })
 const LOOKS: Array<{ value: ThemeChoice; name: string }> = [
   { value: 'dark', name: 'Dark' },
   { value: 'light', name: 'Light' },
-  { value: 'system', name: 'Match the Mac' },
+  { value: 'system', name: 'Match the system' },
 ]
 
 const addRoot = (path: string) => change('roots', { general: { projectRoots: [...g.value.projectRoots, path] } })

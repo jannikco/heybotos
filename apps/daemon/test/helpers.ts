@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,11 +22,54 @@ import { claudeAdapter } from '../src/engines/claude.ts'
 import { codexAdapter } from '../src/engines/codex.ts'
 import { grokAdapter } from '../src/engines/grok.ts'
 import { Supervisor, type RunExtra } from '../src/engines/supervisor.ts'
+import { GIT, WIN } from '../src/platform.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const FAKE = join(here, 'fakes', 'fake-cli.mjs')
 export const FIXTURES = join(here, 'fixtures')
 export const BASIC = join(FIXTURES, 'claude-basic.jsonl')
+
+/** git in a folder, as text. */
+export function git(dir: string, ...args: string[]): string {
+  const out = execFileSync(GIT, ['-C', dir, ...args], { encoding: 'utf8' }).trim()
+  // A new repository keeps files byte for byte, whatever this computer's git is set to do with line
+  // endings (on Windows it usually rewrites them), so what a test writes is what it reads back.
+  if (args[0] === 'init') execFileSync(GIT, ['-C', dir, 'config', 'core.autocrlf', 'false'])
+  return out
+}
+
+/** Whether `path` (a PATH as a program got it) starts with `dir`. */
+export const firstOnPath = (dir: string) => new RegExp(`^${dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[;:]`, WIN ? 'i' : '')
+
+/** A path the way a shell script wants it. On Windows the scripts run in Git's shell, which takes forward slashes. */
+export const sh = (path: string) => (WIN ? path.replace(/\\/g, '/') : path)
+
+/** What one of HeyBotOS's own scripts needs in its environment to be started by hand in a test. */
+export function scriptEnv(): Record<string, string> {
+  const env: Record<string, string> = { PATH: process.env.PATH! }
+  // Windows programs do not get far without knowing where the system is.
+  if (WIN) for (const k of ['SystemRoot', 'SystemDrive', 'TEMP', 'TMP', 'USERPROFILE', 'ComSpec', 'PATHEXT']) if (process.env[k]) env[k] = process.env[k]!
+  // When the tests themselves run on the desktop app's runtime, that program has to be told to act as Node.
+  if (process.versions.electron) env.ELECTRON_RUN_AS_NODE = '1'
+  return env
+}
+
+/** A stand-in for a program on PATH that only notes what it was called with, one call per line. */
+export function standIn(dir: string, name: string, log: string): void {
+  mkdirSync(dir, { recursive: true })
+  if (WIN) writeFileSync(join(dir, `${name}.cmd`), `@echo off\r\necho %*>> "${log}"\r\n`)
+  else writeFileSync(join(dir, name), `#!/bin/sh\necho "$@" >> ${log}\n`, { mode: 0o755 })
+}
+
+/** Stop a process and everything it started, now. */
+export function killTree(pid: number): void {
+  try {
+    if (WIN) execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+    else process.kill(-pid, 'SIGKILL')
+  } catch {
+    /* gone */
+  }
+}
 
 export interface World {
   root: string
@@ -52,7 +96,8 @@ export interface World {
 
 /** `before` runs when the data folder exists and nothing has opened the database yet. */
 export function makeWorld(before?: (home: Home) => void): World {
-  const root = mkdtempSync(join(tmpdir(), 'heybotos-test-'))
+  // The folder's one true spelling: Windows also knows it by a short name (RUNNER~1), and git answers with the long one.
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'heybotos-test-')))
   const home = openHome(root)
   before?.(home)
   home.config.keepAwake = false
@@ -122,14 +167,17 @@ export function makeWorld(before?: (home: Home) => void): World {
       manager.stop()
       for (const s of sups) s.shutdown()
       for (const r of db.all<{ pid: number | null }>('select pid from runs where pid is not null')) {
-        try {
-          process.kill(-r.pid!, 'SIGKILL')
-        } catch {
-          /* gone */
-        }
+        killTree(r.pid!)
       }
       db.close()
-      rmSync(root, { recursive: true, force: true })
+      try {
+        rmSync(root, { recursive: true, force: true, maxRetries: WIN ? 3 : 0, retryDelay: 50 })
+      } catch (e) {
+        // Windows will not remove a folder while a file in it is open: a program that is just ending, or
+        // (on the desktop app's runtime) the database for a moment after it was closed. The folder is
+        // in the system's temporary files, so it is left there rather than waited for.
+        if (!WIN) throw e
+      }
     },
   }
 }

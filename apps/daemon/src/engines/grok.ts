@@ -1,11 +1,11 @@
 // Grok Build in headless mode with streaming-json output, one process per turn.
 // Shapes below were recorded from real runs (test/fixtures/grok-basic.jsonl, grok-resume.jsonl).
-import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { NormEvent, WorkerReport } from '@heybotos/protocol'
 import type { EngineAdapter, FinalResult, LineParser, ParseOut, SpawnSpec } from './types.ts'
 import { clip, oneLine, redact, scrub } from './redact.ts'
+import { runProgramSync } from '../platform.ts'
 
 type Json = Record<string, any>
 
@@ -20,7 +20,7 @@ export function grokConnectors(bin: string, env: Record<string, string>): string
   if (hit && Date.now() - hit.at < 5 * 60_000) return hit.names
   let out: string
   try {
-    out = execFileSync(bin, ['mcp', 'list'], { env, encoding: 'utf8', timeout: 20_000, stdio: ['ignore', 'pipe', 'pipe'] })
+    out = runProgramSync(bin, ['mcp', 'list'], { env, timeout: 20_000, stdio: ['ignore', 'pipe', 'pipe'] })
   } catch (e) {
     throw new Error(`Could not ask Grok which connectors it has, so the worker was not started (it would have had all of them): ${oneLine((e as Error).message, 200)}`)
   }
@@ -61,7 +61,7 @@ export function buildGrokArgs(spec: SpawnSpec): string[] {
 }
 
 function describe(tool: string, input: Json): { name: string; label: string } {
-  const base = (p: unknown) => String(p ?? '').split('/').pop() || 'a file'
+  const base = (p: unknown) => String(p ?? '').split(/[\\/]/).pop() || 'a file'
   switch (tool) {
     case 'run_terminal_command':
       return { name: 'Bash', label: oneLine(input.description || input.command, 90) }

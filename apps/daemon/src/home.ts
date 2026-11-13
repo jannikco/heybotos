@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { moveOldHome } from './migrate.ts'
+import { findProgram, usualBinDirs } from './platform.ts'
 
 export interface EngineConfig {
   /** Absolute path, or a bare name that is looked up on the worker PATH. */
@@ -150,39 +151,14 @@ export function openHome(given?: string): Home {
 }
 
 /**
- * PATH for workers. launchd hands the daemon an almost empty PATH, and `codex` is a node script,
- * so the usual install locations are always appended.
+ * PATH for workers. A background service is handed an almost empty PATH, and `codex` is a node
+ * script, so the usual install locations are always appended.
  */
 export function workerPath(): string {
-  const want = [
-    ...(process.env.PATH ?? '').split(delimiter),
-    join(homedir(), '.local', 'bin'),
-    join(homedir(), '.grok', 'bin'),
-    '/opt/homebrew/bin',
-    '/usr/local/bin',
-    '/usr/bin',
-    '/bin',
-    '/usr/sbin',
-    '/sbin',
-  ]
-  return [...new Set(want.filter(Boolean))].join(delimiter)
+  return [...new Set([...(process.env.PATH ?? '').split(delimiter), ...usualBinDirs()].filter(Boolean))].join(delimiter)
 }
 
-/**
- * The shell words that start one of HeyBotOS's own scripts. Inside the Mac app the program that
- * runs them is the app itself, which has to be told to act as plain Node.
- */
-export function nodeCommand(script: string): string {
-  const words = `${JSON.stringify(process.execPath)} ${JSON.stringify(script)}`
-  return process.versions.electron ? `ELECTRON_RUN_AS_NODE=1 ${words}` : words
-}
-
-/** Find an executable by bare name on the worker PATH. Absolute paths are returned as they are. */
+/** Find a program by bare name on the worker PATH. A path to a file is returned if the file is there. */
 export function findBin(bin: string): string | null {
-  if (bin.includes('/')) return existsSync(bin) ? bin : null
-  for (const dir of workerPath().split(delimiter)) {
-    const p = join(dir, bin)
-    if (existsSync(p)) return p
-  }
-  return null
+  return findProgram(bin, workerPath())
 }

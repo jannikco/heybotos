@@ -1,12 +1,12 @@
 // Are the two CLIs installed and signed in with a subscription? Asked of the CLIs themselves.
-import { execFile } from 'node:child_process'
 import type { Engine, EngineHealth } from '@heybotos/protocol'
 import { findBin, type Home } from './home.ts'
 import { childEnv } from './engines/env.ts'
+import { runProgram } from './platform.ts'
 
 function run(bin: string, args: string[]): Promise<{ ok: boolean; out: string }> {
   return new Promise((resolve) => {
-    execFile(bin, args, { env: childEnv({ runId: 'health' }), timeout: 15_000 }, (err, stdout, stderr) => {
+    runProgram(bin, args, { env: childEnv({ runId: 'health' }), timeout: 15_000 }, (err, stdout, stderr) => {
       resolve({ ok: !err, out: `${stdout}${stderr}`.trim() })
     })
   })

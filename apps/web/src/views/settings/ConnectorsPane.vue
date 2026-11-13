@@ -207,7 +207,7 @@ async function bringIn(): Promise<void> {
             </template>
             <p v-else-if="!c.error" class="text-ink-3">Press Check to ask it what it offers.</p>
             <p class="text-ink-3 mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              <span>{{ c.transport === 'http' ? 'At a web address' : 'A program on this Mac' }}, {{ c.source }}{{ c.signedIn ? ', signed in through the browser' : '' }}</span>
+              <span>{{ c.transport === 'http' ? 'At a web address' : 'A program on this computer' }}, {{ c.source }}{{ c.signedIn ? ', signed in through the browser' : '' }}</span>
               <button type="button" class="hover:text-ink sm:hidden" :disabled="busy[c.name] || !c.enabled" @click="check(c)">Check again</button>
               <button type="button" class="text-bad ml-auto hover:underline" :disabled="busy[c.name]" @click="remove(c)">Remove</button>
             </p>
@@ -232,7 +232,7 @@ async function bringIn(): Promise<void> {
         <input id="cn-target" v-model="form.target" class="field mt-1.5 font-mono text-xs" placeholder="https://example.com/mcp   or   npx -y some-mcp-server" required autocomplete="off" spellcheck="false" />
         <label for="cn-keys" class="mt-4 block text-sm font-medium">{{ isUrl ? 'Sign-in headers, one per line (optional)' : 'Settings it needs in its environment, one per line (optional)' }}</label>
         <textarea id="cn-keys" v-model="form.keys" class="field mt-1.5 min-h-16 font-mono text-xs" spellcheck="false" autocomplete="off" :placeholder="isUrl ? 'Authorization: Bearer …' : 'NAME=value'"></textarea>
-        <p class="text-ink-3 mt-1.5 text-xs">Kept in HeyBotOS's own database on this Mac and never shown again, here or to a worker.</p>
+        <p class="text-ink-3 mt-1.5 text-xs">Kept in HeyBotOS's own database on this computer and never shown again, here or to a worker.</p>
         <p class="text-bad mt-3 min-h-5" role="alert">{{ formBad }}</p>
         <div class="mt-2 flex flex-wrap items-center gap-2">
           <button type="button" class="btn btn-ghost -ml-2" :disabled="adding" @click="bringIn">Bring in from Claude Code</button>

@@ -110,7 +110,7 @@ async function start(): Promise<void> {
         <button class="btn btn-primary start" :disabled="starting" @click="start">Meet your team</button>
         <p class="text-ink-3 text-sm">{{ ready ? 'All of this can be changed later in Settings.' : 'You can go on without an engine and look around; workers start once one is ready.' }}</p>
       </footer>
-      <p v-if="state.me?.stage === 'beta'" class="text-ink-3 mt-6 max-w-[62ch] text-sm">HeyBotOS is in beta. Workers edit files and run commands on this Mac without asking first, so start with projects that are in git, where every change can be seen and undone.</p>
+      <p v-if="state.me?.stage === 'beta'" class="text-ink-3 mt-6 max-w-[62ch] text-sm">HeyBotOS is in beta. Workers edit files and run commands on this computer without asking first, so start with projects that are in git, where every change can be seen and undone.</p>
     </div>
   </main>
 </template>

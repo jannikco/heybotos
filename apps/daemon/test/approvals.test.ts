@@ -1,19 +1,19 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { serve, type ServerType } from '@hono/node-server'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Auth } from '../src/http/auth.ts'
 import { createApp } from '../src/http/app.ts'
-import { FAKE, FIXTURES, makeWorld, until, variant, type World } from './helpers.ts'
+import { FAKE, FIXTURES, firstOnPath, git, makeWorld, scriptEnv, sh, standIn, until, variant, type World } from './helpers.ts'
 
 let w: World
 let server: ServerType
 let savedPath: string
 let asking: string
 const HOOK = join(import.meta.dirname, '..', 'hooks', 'gate-hook.mjs')
-const sshCalls = () => (existsSync(join(w.root, 'ssh-calls.txt')) ? readFileSync(join(w.root, 'ssh-calls.txt'), 'utf8').trim().split('\n') : [])
+const sshCalls = () => (existsSync(join(w.root, 'ssh-calls.txt')) ? readFileSync(join(w.root, 'ssh-calls.txt'), 'utf8').trim().split(/\r?\n/) : [])
 const status = (id: string) => w.tasks.get(id)!.status
 
 /** Run the real hook script the way the CLI would: tool call on stdin, gate settings in the environment. */
@@ -21,7 +21,7 @@ function hook(runId: string, tool: string, input: unknown, env: Record<string, s
   return new Promise((resolve) => {
     // Not spawnSync: the daemon it calls lives in this process and must be free to answer.
     const child = spawn(process.execPath, [HOOK], {
-      env: { PATH: process.env.PATH!, HEYBOTOS_RUN_ID: runId, HEYBOTOS_GATE_URL: w.approvals.url, HEYBOTOS_GATE_TOKEN: w.approvals.token(runId), ...env },
+      env: { ...scriptEnv(), HEYBOTOS_RUN_ID: runId, HEYBOTOS_GATE_URL: w.approvals.url, HEYBOTOS_GATE_TOKEN: w.approvals.token(runId), ...env },
     })
     let stdout = ''
     child.stdout.on('data', (d) => (stdout += d))
@@ -35,7 +35,7 @@ function hook(runId: string, tool: string, input: unknown, env: Record<string, s
 
 function worker(script: string, fixture: string): void {
   const bin = join(w.root, 'worker.sh')
-  writeFileSync(bin, `#!/bin/sh\n${script}\nexec ${FAKE} "$@"\n`, { mode: 0o755 })
+  writeFileSync(bin, `#!/bin/sh\n${script}\nexec ${sh(FAKE)} "$@"\n`, { mode: 0o755 })
   w.home.config.engines.claude.bin = bin
   w.home.config.engines.claude.env = { FAKE_FIXTURE: fixture, FAKE_STDIN_OUT: join(w.root, 'stdin.txt'), FAKE_ENV_OUT: join(w.root, 'env.json') }
 }
@@ -54,13 +54,12 @@ beforeEach(async () => {
   w.approvals.url = `http://127.0.0.1:${port}`
 
   // A stand-in for the real ssh further down the PATH: it only notes that it was reached.
-  mkdirSync(join(w.root, 'bin'))
-  writeFileSync(join(w.root, 'bin', 'ssh'), `#!/bin/sh\necho "$@" >> ${join(w.root, 'ssh-calls.txt')}\n`, { mode: 0o755 })
+  standIn(join(w.root, 'bin'), 'ssh', join(w.root, 'ssh-calls.txt'))
   savedPath = process.env.PATH!
-  process.env.PATH = `${join(w.root, 'bin')}:${savedPath}`
+  process.env.PATH = `${join(w.root, 'bin')}${delimiter}${savedPath}`
 
   mkdirSync(join(w.root, 'code', 'shop'))
-  execFileSync('/usr/bin/git', ['-C', join(w.root, 'code', 'shop'), 'init', '-q'])
+  git(join(w.root, 'code', 'shop'), 'init', '-q')
   await w.registry.scan()
   asking = variant(w.root, 'asking', (lines) =>
     lines.map((l) => (l.type === 'result' ? { ...l, structured_output: { status: 'needs_input', summary: 'Built it; the upload is waiting for approval.', question: 'May I connect to web1 to upload the build?' } } : l)),
@@ -81,9 +80,9 @@ describe('every worker is wired to the gate', () => {
     const runId = w.tasks.get(t.id)!.lastRunId!
     const settings = JSON.parse(readFileSync(join(w.home.runs, runId, 'settings.json'), 'utf8'))
     expect(settings.hooks.PreToolUse[0]).toMatchObject({ matcher: 'Bash|mcp__.*', hooks: [{ type: 'command', onFailure: 'block' }] })
-    expect(settings.hooks.PreToolUse[0].hooks[0].command).toContain('gate-hook.mjs')
+    expect(settings.hooks.PreToolUse[0].hooks[0].command).toContain('gate-hook')
     const env = JSON.parse(readFileSync(join(w.root, 'env.json'), 'utf8')) as Record<string, string>
-    expect(env.PATH!.split(':')[0]).toBe(join(w.home.state, 'shims'))
+    expect(env.PATH).toMatch(firstOnPath(join(w.home.state, 'shims')))
     expect(env.HEYBOTOS_GATE_TOKEN).toBe(w.approvals.token(runId))
     expect(w.approvals.verify(runId, env.HEYBOTOS_GATE_TOKEN!)).toBe(true)
     expect(w.approvals.verify('r_other', env.HEYBOTOS_GATE_TOKEN!)).toBe(false)
@@ -163,7 +162,7 @@ describe('the hook', () => {
 
 describe('from request to resumed worker', () => {
   it('blocks ssh to a gated server, asks the owner, and resumes the same session once they say yes', async () => {
-    worker(`ssh web1 uptime 2>>${join(w.root, 'worker.err')}; echo "exit=$?" >> ${join(w.root, 'worker.log')}; ssh buildbox uptime`, asking)
+    worker(`ssh web1 uptime 2>>${sh(join(w.root, 'worker.err'))}; echo "exit=$?" >> ${sh(join(w.root, 'worker.log'))}; ssh buildbox uptime`, asking)
     const t = w.tasks.create({ project: 'shop', title: 'Upload the build', brief: 'Build and upload to web1.' })
     await until(() => status(t.id) === 'needs_input')
 
@@ -185,7 +184,7 @@ describe('from request to resumed worker', () => {
   })
 
   it('resumes the worker with a no as well, and the wrapper keeps refusing', async () => {
-    worker(`ssh web1 uptime 2>/dev/null; echo "exit=$?" >> ${join(w.root, 'worker.log')}`, asking)
+    worker(`ssh web1 uptime 2>/dev/null; echo "exit=$?" >> ${sh(join(w.root, 'worker.log'))}`, asking)
     const t = w.tasks.create({ project: 'shop', brief: 'Upload to web1.' })
     await until(() => status(t.id) === 'needs_input')
     w.approvals.decideApproval(w.approvals.list()[0]!.id, false, 'Use staging instead.')

@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildCodexArgs, createCodexParser, unwrapCommand } from '../src/engines/codex.ts'
-import { FAKE, FIXTURES, makeWorld, until, type World } from './helpers.ts'
+import { FAKE, FIXTURES, firstOnPath, git, makeWorld, sh, until, type World } from './helpers.ts'
 
 const lines = (name: string) => readFileSync(join(FIXTURES, name), 'utf8').split('\n').filter(Boolean)
 
@@ -70,7 +70,7 @@ describe('a codex worker in a task', () => {
   beforeEach(async () => {
     w = makeWorld()
     mkdirSync(join(w.root, 'code', 'shop'))
-    execFileSync('/usr/bin/git', ['-C', join(w.root, 'code', 'shop'), 'init', '-q'])
+    git(join(w.root, 'code', 'shop'), 'init', '-q')
     await w.registry.scan()
     w.sup.start()
   })
@@ -78,7 +78,7 @@ describe('a codex worker in a task', () => {
 
   it('gets its rules ahead of the task, works in the project folder, and resumes the same thread', async () => {
     const bin = join(w.root, 'codex.sh')
-    writeFileSync(bin, `#!/bin/sh\npwd > ${join(w.root, 'cwd.txt')}\nexec ${FAKE} "$@"\n`, { mode: 0o755 })
+    writeFileSync(bin, `#!/bin/sh\npwd > ${sh(join(w.root, 'cwd.txt'))}\nexec ${sh(FAKE)} "$@"\n`, { mode: 0o755 })
     w.home.config.engines.codex.bin = bin
     w.home.config.engines.codex.env = { FAKE_FIXTURE: join(FIXTURES, 'codex-basic.jsonl'), FAKE_STDIN_OUT: join(w.root, 'stdin.txt'), FAKE_ARGS_OUT: join(w.root, 'args.json'), FAKE_ENV_OUT: join(w.root, 'env.json') }
     const t = w.tasks.create({ project: 'shop', title: 'Make the file', brief: 'Create made.txt.', engine: 'codex' })
@@ -93,7 +93,7 @@ describe('a codex worker in a task', () => {
     expect(stdin).toContain('You are a worker agent started by HeyBotOS')
     expect(stdin).toContain('Your task:\n\nTask: Make the file\n\nCreate made.txt.')
     const env = JSON.parse(readFileSync(join(w.root, 'env.json'), 'utf8')) as Record<string, string>
-    expect(env.PATH!.split(':')[0]).toBe(join(w.home.state, 'shims'))
+    expect(env.PATH).toMatch(firstOnPath(join(w.home.state, 'shims')))
     expect(env.ZDOTDIR).toBe(join(w.home.state, 'zdot'))
 
     w.home.config.engines.codex.env = { ...w.home.config.engines.codex.env, FAKE_FIXTURE: join(FIXTURES, 'codex-resume.jsonl') }
@@ -105,14 +105,37 @@ describe('a codex worker in a task', () => {
     expect(w.tasks.get(t.id)!.summary).toBe('The file I created was made.txt.')
   })
 
-  it('keeps the gate wrappers in front even in a login shell, which is how Codex runs commands', () => {
+  // A login shell rebuilds PATH from the system's and the owner's start-up files, which would put the
+  // real ssh first again. Checked for each shell this computer has.
+  it.skipIf(process.platform === 'win32')('keeps the gate wrappers in front even in a login shell, which is how Codex runs commands', () => {
     mkdirSync(join(w.root, 'bin'))
     writeFileSync(join(w.root, 'bin', 'ssh'), '#!/bin/sh\necho real\n', { mode: 0o755 })
     const shims = join(w.home.state, 'shims')
-    const found = execFileSync('/bin/zsh', ['-lc', 'command -v ssh'], {
-      encoding: 'utf8',
-      env: { PATH: `${shims}:${join(w.root, 'bin')}:/usr/bin:/bin`, HOME: process.env.HOME!, ZDOTDIR: join(w.home.state, 'zdot'), HEYBOTOS_SHIM_DIR: shims },
-    }).trim()
-    expect(found).toBe(join(shims, 'ssh'))
+    const zdot = join(w.home.state, 'zdot')
+    // The login files of this account put a folder of their own first, as many do.
+    const fakeHome = join(w.root, 'home')
+    mkdirSync(fakeHome)
+    for (const f of ['.zprofile', '.bash_profile']) writeFileSync(join(fakeHome, f), `export PATH="${join(w.root, 'bin')}:$PATH"\n`)
+    const shells = ['/bin/zsh', '/usr/bin/zsh', '/bin/bash', '/usr/bin/bash'].filter((s, i, all) => existsSync(s) && !all.slice(0, i).some((t) => existsSync(t) && t.split('/').pop() === s.split('/').pop()))
+    expect(shells.length).toBeGreaterThan(0)
+    for (const shell of shells) {
+      const found = execFileSync(shell, ['-lc', 'command -v ssh'], {
+        encoding: 'utf8',
+        env: { PATH: `${shims}:${join(w.root, 'bin')}:/usr/bin:/bin`, HOME: fakeHome, ZDOTDIR: zdot, BASH_ENV: join(zdot, 'bash-env.sh'), HEYBOTOS_SHIM_DIR: shims },
+      }).trim()
+      expect(found, shell).toBe(join(shims, 'ssh'))
+    }
+  })
+
+  // On Windows the tools run their commands in Git's bash, whose starter puts Git's own folders (with
+  // Git's ssh in them) at the front of PATH. The start-up file puts the wrappers back in front.
+  it.skipIf(process.platform !== 'win32' || !existsSync(join(process.env.ProgramFiles ?? '', 'Git', 'bin', 'bash.exe')))("keeps the gate wrappers in front in Git's bash on Windows", () => {
+    const shims = join(w.home.state, 'shims')
+    const bash = join(process.env.ProgramFiles!, 'Git', 'bin', 'bash.exe')
+    const env = { ...process.env, PATH: `${shims};${process.env.PATH}`, BASH_ENV: join(w.home.state, 'zdot', 'bash-env.sh'), HEYBOTOS_SHIM_DIR: shims }
+    for (const flags of [['-c'], ['-lc']]) {
+      const found = execFileSync(bash, [...flags, 'cygpath -w "$(command -v ssh)"'], { encoding: 'utf8', env }).trim()
+      expect(found.toLowerCase(), flags.join(' ')).toBe(join(shims, 'ssh').toLowerCase())
+    }
   })
 })

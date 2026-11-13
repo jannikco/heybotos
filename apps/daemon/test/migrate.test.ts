@@ -1,6 +1,6 @@
 // An installation from when HeyBotOS was called BotOS is carried over: folder, file names and
 // every path stored in the database.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -13,7 +13,7 @@ let next: string
 const said: string[] = []
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'heybotos-move-'))
+  home = realpathSync.native(mkdtempSync(join(tmpdir(), 'heybotos-move-')))
   old = join(home, 'botos')
   next = join(home, 'heybotos')
   said.length = 0
@@ -47,7 +47,14 @@ beforeEach(() => {
   db.run(`insert into files (id, name, mime, size, path, created_at) values ('f_aaaaaaaaaaaa', 'shot.png', 'image/png', 3, ?, 1)`, join(old, 'files', 'f_aaaaaaaaaaaa', 'shot.png'))
   db.close()
 })
-afterEach(() => rmSync(home, { recursive: true, force: true }))
+afterEach(() => {
+  try {
+    rmSync(home, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 })
+  } catch (e) {
+    // Windows will not remove a folder while something that is just ending still has a file open in it.
+    if (process.platform !== 'win32') throw e
+  }
+})
 
 describe('carrying an old installation over', () => {
   it('moves the folder, renames what carried the old name, and keeps the old database and config', () => {
@@ -79,7 +86,8 @@ describe('carrying an old installation over', () => {
     expect(one<{ cwd: string }>(`select cwd from tasks where id = 't_near'`).cwd).toBe(`${old}-archive/x`)
     const run = one<{ cwd: string; stdout_path: string; extra_json: string; session_id: string | null }>(`select cwd, stdout_path, extra_json, session_id from runs where id = 'r_1'`)
     expect(run).toMatchObject({ cwd: join(next, 'worktrees', 't_wt'), stdout_path: join(next, 'state', 'runs', 'r_1', 'stdout.jsonl'), session_id: 's-1' })
-    expect(run.extra_json).toContain(join(next, 'worktrees', 't_wt'))
+    // Stored as JSON, where a path is written the way JSON writes it (a backslash doubled).
+    expect(JSON.parse(run.extra_json).systemPrompt).toBe(`You are in ${join(next, 'worktrees', 't_wt')}.`)
     expect(one<{ session_id: string | null }>(`select session_id from runs where id = 'r_m'`).session_id).toBeNull()
     const file = one<{ path: string }>('select path from files')
     expect(file.path).toBe(join(next, 'files', 'f_aaaaaaaaaaaa', 'shot.png'))

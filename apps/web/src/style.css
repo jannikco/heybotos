@@ -835,8 +835,9 @@
 }
 
 /* ── inside the desktop app ───────────────────────────────────────────────────────────────── */
-/* The window has no title bar of its own: the bars at the top of the page are what you drag it by,
-   and the sidebar leaves room for the window buttons. */
+/* In the desktop app, only what is meant to be read can be selected. On the Mac the window has no
+   title bar of its own: the bars at the top of the page are what you drag it by, and the sidebar
+   leaves room for the window buttons. */
 html[data-desktop] body {
   -webkit-user-select: none;
   user-select: none;
@@ -851,8 +852,8 @@ html[data-desktop] [class*='prose'] {
   -webkit-user-select: text;
   user-select: text;
 }
-html[data-desktop] .viewbar,
-html[data-desktop] .side-top {
+html[data-desktop='mac'] .viewbar,
+html[data-desktop='mac'] .side-top {
   -webkit-app-region: drag;
 }
 html[data-desktop] a,
@@ -864,7 +865,7 @@ html[data-desktop] summary,
 html[data-desktop] [role='button'] {
   -webkit-app-region: no-drag;
 }
-html[data-desktop] .side-top {
+html[data-desktop='mac'] .side-top {
   padding-top: 2.4rem;
 }
 /* The quick-ask window is a floating pane with nothing behind it. */

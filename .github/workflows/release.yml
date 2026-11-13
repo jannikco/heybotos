@@ -1,0 +1,19 @@
+name: Release packages
+
+# Adds the Linux and Windows packages to a release that already exists. The Mac app is built and
+# added by hand (apps/desktop/scripts/release.mjs), because signing it needs a Mac.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release to add the packages to, for example v0.4.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  packages:
+    uses: ./.github/workflows/packages.yml
+    with:
+      tag: ${{ inputs.tag }}

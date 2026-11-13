@@ -46,7 +46,7 @@ test('connectors: see which ones answer and what they offer, add, switch off, an
   const changes = shop.getByRole('group', { name: 'shop: changes things' })
   await expect(changes).toContainText('waits for your yes')
   await expect(changes.getByRole('listitem')).toHaveText(/^\s*create-order\s*asks\s*$/)
-  await expect(shop.getByText('A program on this Mac')).toBeVisible()
+  await expect(shop.getByText('A program on this computer')).toBeVisible()
 
   // One tool that changes something can be let through, right where it is listed.
   const allow = changes.getByRole('switch', { name: 'Allow shop create-order without asking' })

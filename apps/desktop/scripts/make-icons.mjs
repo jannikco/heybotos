@@ -1,5 +1,5 @@
-// Draws every icon from the HeyBotOS mark: the Mac app icon, the menu-bar icon, and the dashboard's
-// favicons. The mark's path data lives in apps/web/src/components/brand/paths.ts (from the logo
+// Draws every icon from the HeyBotOS mark: the app icon for macOS, Windows and Linux, the menu-bar
+// and notification-area icons, and the dashboard's favicons. The mark's path data lives in apps/web/src/components/brand/paths.ts (from the logo
 // package). Rendering is done by Chrome through Playwright, which the browser tests already use.
 // Run it with `pnpm --filter @heybotos/desktop icons` after the mark changes; its output is committed.
 import { execFileSync } from 'node:child_process'
@@ -69,29 +69,44 @@ await render(tray(36), 36, join(desktop, 'assets', 'trayTemplate@2x.png'))
 writeFileSync(join(web, 'mark.svg'), markSvg)
 await render(plain(32), 32, join(web, 'icon-32.png'))
 for (const size of [180, 192, 512]) await render(square(size), size, join(web, `icon-${size}.png`))
-// favicon.ico: an .ico file may simply hold PNGs.
-const pngs = []
-for (const size of [16, 32, 48]) {
-  const page = await browser.newPage({ viewport: { width: size, height: size } })
-  await page.setContent(`<body style="margin:0;background:transparent">${plain(size)}</body>`)
-  pngs.push([size, await page.screenshot({ omitBackground: true })])
-  await page.close()
+// An .ico file may simply hold PNGs, one per size.
+async function ico(file, sizes, svg) {
+  const pngs = []
+  for (const size of sizes) {
+    const page = await browser.newPage({ viewport: { width: size, height: size } })
+    await page.setContent(`<body style="margin:0;background:transparent">${svg(size)}</body>`)
+    pngs.push([size, await page.screenshot({ omitBackground: true })])
+    await page.close()
+  }
+  const header = Buffer.alloc(6 + 16 * pngs.length)
+  header.writeUInt16LE(1, 2)
+  header.writeUInt16LE(pngs.length, 4)
+  let offset = header.length
+  pngs.forEach(([size, data], i) => {
+    const at = 6 + 16 * i
+    // One byte each for width and height: 0 stands for 256.
+    header.writeUInt8(size % 256, at)
+    header.writeUInt8(size % 256, at + 1)
+    header.writeUInt16LE(1, at + 4)
+    header.writeUInt16LE(32, at + 6)
+    header.writeUInt32LE(data.length, at + 8)
+    header.writeUInt32LE(offset, at + 12)
+    offset += data.length
+  })
+  writeFileSync(file, Buffer.concat([header, ...pngs.map(([, data]) => data)]))
 }
-const header = Buffer.alloc(6 + 16 * pngs.length)
-header.writeUInt16LE(1, 2)
-header.writeUInt16LE(pngs.length, 4)
-let offset = header.length
-pngs.forEach(([size, data], i) => {
-  const at = 6 + 16 * i
-  header.writeUInt8(size, at)
-  header.writeUInt8(size, at + 1)
-  header.writeUInt16LE(1, at + 4)
-  header.writeUInt16LE(32, at + 6)
-  header.writeUInt32LE(data.length, at + 8)
-  header.writeUInt32LE(offset, at + 12)
-  offset += data.length
-})
-writeFileSync(join(web, 'favicon.ico'), Buffer.concat([header, ...pngs.map(([, data]) => data)]))
+await ico(join(web, 'favicon.ico'), [16, 32, 48], plain)
+
+// Windows and Linux: the navy tile with rounded corners, filling its square (those systems add no
+// shape or shadow of their own), and the mark in colour for the notification area.
+const tile = (size) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 1024 1024"><defs>${gradient}<linearGradient id="tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#18235a"/><stop offset="1" stop-color="${NAVY}"/></linearGradient></defs><rect x="16" y="16" width="992" height="992" rx="224" fill="url(#tile)"/>${placed(1024, 660)}</svg>`
+await ico(join(desktop, 'build', 'icon.ico'), [16, 24, 32, 48, 64, 128, 256], (size) => (size <= 32 ? plain(size) : tile(size)))
+mkdirSync(join(desktop, 'build', 'icons'), { recursive: true })
+for (const size of [32, 48, 64, 128, 256, 512]) await render(tile(size), size, join(desktop, 'build', 'icons', `${size}.png`))
+await render(plain(16), 16, join(desktop, 'assets', 'tray.png'))
+await render(plain(32), 32, join(desktop, 'assets', 'tray@2x.png'))
+await render(plain(32), 32, join(desktop, 'assets', 'tray-large.png'))
+await render(tile(256), 256, join(desktop, 'assets', 'icon.png'))
 
 await browser.close()
-console.log('Icons written: build/icon.icns, assets/trayTemplate*.png, and the dashboard favicons.')
+console.log('Icons written: build/icon.icns, build/icon.ico, build/icons/*.png, assets/tray*.png, and the dashboard favicons.')

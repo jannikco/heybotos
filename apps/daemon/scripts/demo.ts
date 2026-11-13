@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { GIT } from '../src/platform.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = process.env.HEYBOTOS_HOME || mkdtempSync(join(tmpdir(), 'heybotos-demo-'))
@@ -14,7 +15,7 @@ const code = join(root, 'code')
 const fake = join(here, '..', 'test', 'fakes', 'fake-cli.mjs')
 mkdirSync(join(root, 'config'), { recursive: true })
 
-const git = (dir: string, ...args: string[]) => execFileSync('/usr/bin/git', ['-C', dir, ...args], { stdio: 'ignore' })
+const git = (dir: string, ...args: string[]) => execFileSync(GIT, ['-C', dir, ...args], { stdio: 'ignore' })
 if (!existsSync(code)) {
   const shop = join(code, 'shop')
   mkdirSync(join(shop, 'resources', 'css'), { recursive: true })

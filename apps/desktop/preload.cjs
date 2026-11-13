@@ -1,4 +1,4 @@
-// The only bridge between the page and the desktop shell: a flag, a few messages, and the Mac's
+// The only bridge between the page and the desktop shell: a flag, a few messages, and the system's
 // folder chooser.
 const { contextBridge, ipcRenderer } = require('electron')
 
@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('heybotosDesktop', {
 })
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Lets the page leave room for the window buttons and make its top edge draggable.
-  document.documentElement.dataset.desktop = '1'
+  // On the Mac the page is its own title bar: it leaves room for the window buttons and its top edge
+  // is what the window is dragged by. Elsewhere the window has the system's frame.
+  document.documentElement.dataset.desktop = process.platform === 'darwin' ? 'mac' : 'framed'
 })

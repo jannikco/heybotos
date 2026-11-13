@@ -10,7 +10,7 @@ Thank you for wanting to help. Bug reports, ideas and pull requests are all welc
 
 ## Setting up
 
-You need macOS, Node 26 and pnpm.
+You need macOS or Linux, Node 26 and pnpm. (Windows works too for the tests; the background service there comes only with the built app.)
 
 ```sh
 pnpm install
@@ -30,7 +30,7 @@ your subscription. Only `pnpm smoke` talks to a real CLI; run it deliberately.
 | `packages/protocol` | The types the service and the dashboard share. Types only, nothing at runtime. |
 | `apps/daemon` | The service: Node running TypeScript directly, a small HTTP API, SQLite. It owns every worker process. |
 | `apps/web` | The dashboard: Vue 3, Vite, Tailwind 4. |
-| `apps/desktop` | The Mac app: an Electron shell that carries the service and the dashboard. |
+| `apps/desktop` | The desktop app for macOS, Linux and Windows: an Electron shell that carries the service and the dashboard. |
 | `prompts` | What the manager and the workers are told. |
 | `e2e` | Browser tests against the demo. |
 

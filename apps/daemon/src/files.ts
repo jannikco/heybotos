@@ -112,7 +112,7 @@ export class Files {
 
   /** Take a file id, or the path a worker or the manager was given for it. */
   resolve(ref: string): FileRow | undefined {
-    const id = /(?:^|\/)(f_[0-9a-f]{12})(?:\/|$)/.exec(ref.trim())?.[1]
+    const id = /(?:^|[\\/])(f_[0-9a-f]{12})(?:[\\/]|$)/.exec(ref.trim())?.[1]
     return id ? this.row(id) : undefined
   }
 

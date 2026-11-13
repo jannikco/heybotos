@@ -5,8 +5,9 @@
 import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import type { Db } from './db.ts'
+import { GIT } from './platform.ts'
 
 const OLD_NAME = 'botos'
 const OLD_LABEL = 'com.botos.daemon'
@@ -93,7 +94,13 @@ export function finishMove(root: string, db: Db, log: (line: string) => void = c
   ]
   db.tx(() => {
     // Only the folder itself, never a neighbour whose name merely starts the same way.
-    for (const [table, column] of columns) db.run(`update ${table} set ${column} = replace(${column}, ?, ?) where ${column} like ?`, `${from}/`, `${to}/`, `%${from}/%`)
+    // The folder is written plainly in most columns and as text inside JSON in some, where a backslash is doubled.
+    const inJson = (path: string) => JSON.stringify(`${path}${sep}`).slice(1, -1)
+    for (const [table, column] of columns) {
+      for (const [a, b] of new Map([[`${from}${sep}`, `${to}${sep}`], [inJson(from), inJson(to)]])) {
+        db.run(`update ${table} set ${column} = replace(${column}, ?, ?) where instr(${column}, ?) > 0`, a, b, a)
+      }
+    }
     // The manager's earlier session knows its tools by their old names: its next turn starts a new one.
     db.run(`update runs set session_id = null where role = 'manager'`)
   })
@@ -101,7 +108,7 @@ export function finishMove(root: string, db: Db, log: (line: string) => void = c
   for (const t of db.all<{ cwd: string; path: string }>(`select t.cwd, p.path from tasks t join projects p on p.slug = t.project_slug where t.isolation = 'worktree' and t.cwd like ?`, `${to}/%`)) {
     if (!existsSync(t.cwd)) continue
     try {
-      execFileSync('/usr/bin/git', ['-C', t.path, 'worktree', 'repair', t.cwd], { stdio: 'ignore', timeout: 20_000 })
+      execFileSync(GIT, ['-C', t.path, 'worktree', 'repair', t.cwd], { stdio: 'ignore', timeout: 20_000 })
     } catch {
       /* the copy stays where it is; git says so the next time it is used */
     }

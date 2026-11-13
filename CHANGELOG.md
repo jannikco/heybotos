@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 (beta)
+
+- **Linux.** The desktop app as a `.deb` (Debian, Ubuntu, Mint) and an AppImage, for x64 and arm64. The
+  background service is a systemd user service; workers' shells keep the gate's wrappers in front in bash
+  as they already did in zsh.
+- **Windows (experimental).** An installer for Windows 10 and 11 that needs no administrator rights. The
+  tests pass and the app, its service and the installer are tried by machines on every change, but nobody
+  has done real work with it on Windows yet.
+- The dashboard no longer says "this Mac".
+
 ## 0.3.1 (beta)
 
 - Attach files to a message: pick them with the paperclip, drop them on the conversation, or paste a

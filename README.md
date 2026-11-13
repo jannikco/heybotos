@@ -9,27 +9,35 @@
 
 > [!WARNING]
 > **HeyBotOS is in beta.** It works and is used every day, but expect rough edges and changes between
-> versions. Its workers edit files and run commands on your Mac without asking first: start with projects
+> versions. Its workers edit files and run commands on your computer without asking first: start with projects
 > that are in git, where every change can be seen and undone, and keep backups of anything you care about.
 
-HeyBotOS is a Mac app that runs a team of coding agents for you. You tell the manager what you want done, in
+HeyBotOS is a desktop app for macOS, Linux and Windows that runs a team of coding agents for you. You tell the manager what you want done, in
 any of your projects. It splits the work into tasks, hands them to workers, keeps track, and comes back with
 the result. You see every agent and every step, and you can undo what a worker changed.
 
 It runs on the subscriptions you already have. The manager and the workers are the official command-line
-tools (Claude Code, the Codex CLI, Grok Build), started on your own Mac with the logins they already hold.
+tools (Claude Code, the Codex CLI, Grok Build), started on your own computer with the logins they already hold.
 HeyBotOS has no account, no key and no server of its own, and it never calls a model API.
 
 ![The conversation with the manager](docs/assets/screenshot-chat.png)
 
 ## Install
 
-```sh
-brew install --cask jannikco/tap/heybotos
-```
+| System | How | State |
+|---|---|---|
+| macOS 12 or newer | `brew install --cask jannikco/tap/heybotos` | Used every day |
+| Linux (x64, arm64) | The `.deb` or the `.AppImage` from the [latest release](https://github.com/jannikco/heybotos/releases) | Tried on Linux Mint; new |
+| Windows 10 or 11 (x64) | `HeyBotOS-…-win-x64-setup.exe` from the [latest release](https://github.com/jannikco/heybotos/releases) | Experimental, see below |
 
 Then open HeyBotOS. The first time, it shows which of the three tools are installed and signed in, and asks
 where your projects are.
+
+### macOS
+
+```sh
+brew install --cask jannikco/tap/heybotos
+```
 
 > **macOS stops the app the first time you open it**, because it is not notarised by Apple yet. To let it through:
 >
@@ -41,7 +49,44 @@ where your projects are.
 > macOS asks again after each update. On a Mac managed by a company, "Open Anyway" can be switched off; then
 > build HeyBotOS from source instead (see below), which macOS does not stop.
 
-You need macOS 12 or newer and at least one of these, installed and signed in with a subscription:
+### Linux
+
+On Debian, Ubuntu and Mint, install the `.deb`:
+
+```sh
+sudo apt install ./heybotos_*_amd64.deb     # or _arm64.deb
+```
+
+Anywhere else, use the AppImage: make it executable and run it. An AppImage is only there while it runs, and
+HeyBotOS keeps a service going after its window is closed, so the first time it copies the app to
+`~/.local/share/heybotos/app`, adds an entry to your applications menu and puts the `heybotos` command in
+`~/.local/bin`.
+
+```sh
+chmod +x HeyBotOS-*.AppImage && ./HeyBotOS-*.AppImage
+```
+
+The background service is a systemd user service (`heybotos.service`); where there is no user systemd it is
+an autostart entry instead. Notifications use `notify-send`.
+
+### Windows
+
+Run the installer. It installs for you alone, in `%LOCALAPPDATA%\Programs\HeyBotOS`, and asks for no
+administrator rights. It is not signed, so Windows says the publisher is unknown the first time: choose
+"More info", then "Run anyway".
+
+> **Windows is experimental.** Nobody who works on HeyBotOS has a Windows computer. What is checked, by
+> machines, on every change: the tests pass on Windows, the installer installs, the app opens, its service
+> starts and answers, and the uninstaller removes it. What nobody has checked: real work with the real
+> tools. In particular the gate (the yes or no before a worker reaches a server) relies on how each tool
+> starts its commands on Windows, and that has not been seen working. Use it on projects in git, and tell us
+> what you find in the [issues](https://github.com/jannikco/heybotos/issues).
+
+The tools need [Git for Windows](https://git-scm.com/download/win) anyway; HeyBotOS uses its `git` too.
+
+### What you need
+
+At least one of these, installed and signed in with a subscription:
 
 | Tool | Command it provides |
 |---|---|
@@ -85,20 +130,26 @@ and an accident:
 - **Subscriptions only.** Workers get a clean environment built from an allowlist, so no key variable can
   switch a tool to metered billing, and a turn that is not on the subscription login is stopped before it does
   any work.
-- **Only this Mac.** The service listens on 127.0.0.1 only, and only talks to a browser that you signed in
+- **Only this computer.** The service listens on 127.0.0.1 only, and only talks to a browser that you signed in
   from this computer.
 
 ## Where things live
 
-| What | Where |
-|---|---|
-| The app | `/Applications/HeyBotOS.app` (it carries the service; no Node needed) |
-| Your data | `~/heybotos` (settings in `config/`, database and logs in `state/`, attachments in `files/`) |
-| Background service | `com.heybotos.daemon`, set up by the app; it keeps workers and routines going when the window is closed |
-| Terminal command | `heybotos open`, `status`, `logs`, `uninstall` |
+| What | macOS | Linux | Windows |
+|---|---|---|---|
+| The app (it carries the service; no Node needed) | `/Applications/HeyBotOS.app` | `/opt/HeyBotOS` (.deb) or `~/.local/share/heybotos/app` (AppImage) | `%LOCALAPPDATA%\Programs\HeyBotOS` |
+| Your data | `~/heybotos` | `~/heybotos` | `%USERPROFILE%\heybotos` |
+| Background service | launchd agent `com.heybotos.daemon` | systemd user service `heybotos.service` | started at sign-in from your Run key |
+| Terminal command | `heybotos` | `heybotos` | `resources\heybotos\bin\heybotos.cmd` in the app's folder |
 
-To remove it: `brew uninstall --cask heybotos`. Your data in `~/heybotos` stays until you delete it (or
-uninstall with `--zap`).
+Your data folder holds settings in `config/`, the database and logs in `state/`, and attachments in `files/`.
+The background service is set up by the app and keeps workers and routines going when the window is closed.
+The terminal command takes `open`, `status`, `logs` and `uninstall`.
+
+To remove HeyBotOS: `brew uninstall --cask heybotos` on macOS, `sudo apt remove heybotos` on Linux (with the
+AppImage: run `heybotos uninstall`, then delete `~/.local/share/heybotos`), and "Installed apps" in Settings
+on Windows. Run `heybotos uninstall` first where you can: it stops the background service. Your data folder
+stays until you delete it.
 
 ## Build from source
 
@@ -115,14 +166,15 @@ pnpm demo              # the real service on throwaway data with a stand-in CLI;
 pnpm test              # unit tests; the stand-in CLI replays recorded runs, nothing is spent
 pnpm e2e               # browser tests against the demo
 pnpm typecheck
-pnpm --filter @heybotos/desktop dist   # builds the Mac app into apps/desktop/dist
+pnpm --filter @heybotos/desktop dist   # builds the Mac app into apps/desktop/dist (dist:linux, dist:win elsewhere)
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the layout of the code and the rules for changing it.
 
 ## Beta
 
-This is a beta. It is used every day by the people who build it, on macOS; nothing else is supported yet.
+This is a beta. It is used every day by the people who build it, on macOS. Linux is new and Windows is
+experimental (see Install).
 Things will change between versions, sometimes in ways that need a manual step; [CHANGELOG.md](CHANGELOG.md)
 says what changed. Bug reports and ideas are very welcome in the
 [issues](https://github.com/jannikco/heybotos/issues).

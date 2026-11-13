@@ -4,7 +4,7 @@ import type { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Auth } from '../src/http/auth.ts'
 import { createApp } from '../src/http/app.ts'
-import { FAKE, FIXTURES, makeWorld, until, variant, type World } from './helpers.ts'
+import { FAKE, FIXTURES, makeWorld, sh, until, variant, type World } from './helpers.ts'
 
 let w: World
 const RICH = join(FIXTURES, 'claude-rich.jsonl')
@@ -34,11 +34,11 @@ beforeEach(async () => {
 case "$PWD" in
   */manager)
     if [ "$1" = "-p" ]; then
-      tmp=$(mktemp); cat > "$tmp"; cat "$tmp" >> ${f('mgr-stdin.txt')}; printf '\\n=====\\n' >> ${f('mgr-stdin.txt')}
-      FAKE_FIXTURE=$(cat ${f('mgr-fixture')}) FAKE_ARGS_OUT=${f('mgr-args.json')} exec ${FAKE} "$@" < "$tmp"
+      tmp=$(mktemp); cat > "$tmp"; cat "$tmp" >> ${sh(f('mgr-stdin.txt'))}; printf '\\n=====\\n' >> ${sh(f('mgr-stdin.txt'))}
+      FAKE_FIXTURE=$(cat ${sh(f('mgr-fixture'))}) FAKE_ARGS_OUT=${sh(f('mgr-args.json'))} exec ${sh(FAKE)} "$@" < "$tmp"
     fi ;;
 esac
-FAKE_FIXTURE=$(cat ${f('wrk-fixture')}) FAKE_MODE=$(cat ${f('wrk-mode')}) FAKE_DELAY_MS=$(cat ${f('wrk-delay')}) exec ${FAKE} "$@"
+FAKE_FIXTURE=$(cat ${sh(f('wrk-fixture'))}) FAKE_MODE=$(cat ${sh(f('wrk-mode'))}) FAKE_DELAY_MS=$(cat ${sh(f('wrk-delay'))}) exec ${sh(FAKE)} "$@"
 `,
     { mode: 0o755 },
   )

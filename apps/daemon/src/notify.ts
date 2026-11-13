@@ -1,14 +1,9 @@
-// A macOS notification when something lands in the owner's inbox, so they do not have to watch the page.
-import { execFile } from 'node:child_process'
+// A notification when something lands in the owner's inbox, so they do not have to watch the page.
 import type { Bus } from './bus.ts'
 import type { Home } from './home.ts'
+import { systemNotify } from './platform.ts'
 
-const quote = (s: string) => `"${s.replace(/[\\"]/g, '\\$&').replace(/\s+/g, ' ').slice(0, 220)}"`
-
-export function notify(title: string, body: string): void {
-  if (process.platform !== 'darwin') return
-  execFile('/usr/bin/osascript', ['-e', `display notification ${quote(body)} with title "HeyBotOS" subtitle ${quote(title)}`], { timeout: 5000 }, () => {})
-}
+export const notify = systemNotify
 
 /** Tell the owner about new requests and new questions. Once each: a task that keeps waiting is not repeated. */
 export function watchInbox(home: Home, bus: Bus, send = notify, presence?: { desktop: number }): void {
