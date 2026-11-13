@@ -556,11 +556,11 @@ export class Supervisor {
 
     const { watchdog, stopGraceMs } = this.home.config
     for (const a of [...this.active.values()]) {
-      this.drain(a, false)
+      this.drain(a, false, now)
 
       if (!a.exited && !a.child && !alive(a.pid)) a.exited = true
       if (a.exited) {
-        this.drain(a, true)
+        this.drain(a, true, now)
         this.finalise(a)
         continue
       }
@@ -598,7 +598,8 @@ export class Supervisor {
    * Only whole lines are consumed, and the offset moves in the same transaction as the events,
    * so a crash between the two can neither lose nor repeat a line.
    */
-  private drain(a: ActiveRun, atEnd: boolean): void {
+  /** Read what the worker has written since last time. `now` is the tick's own time, so one tick never measures with two clocks. */
+  private drain(a: ActiveRun, atEnd: boolean, now = Date.now()): void {
     if (!a.path || !existsSync(a.path)) return
     for (;;) {
       const row = this.db.get<{ stdout_offset: number; status: RunStatus; turn: number }>('select stdout_offset, status, turn from runs where id = ?', a.id)
@@ -629,7 +630,7 @@ export class Supervisor {
       const consumed = end + 1
       const lines = buf.subarray(0, consumed).toString('utf8').split('\n').filter((l) => l.trim() !== '')
 
-      a.lastOutputAt = Date.now()
+      a.lastOutputAt = now
       const events: Array<Omit<StoredEvent, 'id' | 'runId' | 'ts'>> = []
       // Each live piece remembers how many events came before it, so both go out in the order they arrived.
       const deltas: Array<{ before: number; parent: string | null; channel: 'text' | 'thinking'; text: string }> = []
