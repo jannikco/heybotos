@@ -1,43 +1,43 @@
 {
-  "version": "0.5.0",
-  "notes": "- **HeyBotOS updates itself.** It looks for a newer version now and then and says so in the sidebar. In\n  Settings, General, Version you see what is new and choose \"Update and restart\": the app fetches the new\n  version, checks that it is the one the project published, replaces itself and opens again. Workers keep\n  running through it. Looking by itself can be switched off, and nothing is installed without your say.\n- Where the app cannot replace itself (installed from the `.deb`), it fetches the new package and gives\n  you the one command that installs it.\n- `heybotos update` in a terminal says whether there is a newer version.\n\nThis is the first version that can do this: from 0.4.0 or older, update once the way you installed it.",
-  "published": "2026-11-13T10:03:22.033Z",
-  "page": "https://github.com/jannikco/heybotos/releases/tag/v0.5.0",
+  "version": "0.5.1",
+  "notes": "Connectors (MCP servers) that work for real work:\n\n- **A connector you trust leaves the worker its shell.** Until now any worker with a connector lost the\n  ability to run commands and tests, which made a browser or your own system useless next to coding. Each\n  connector now says whether workers keep their shell with it (Settings, Connectors). It is off by default:\n  a connector that brings in text other people wrote could try to steer a worker. When you add a connector\n  you say what it is: a tool of yours, a system of yours, or other people's words.\n- **\"Allow all\"** lets a connector's tools be used without asking, for a tool like a browser where every\n  click would otherwise wait for your yes.\n- **\"Bring in from Claude Code\" also finds what plugins and project folders add** (a plugin's `.mcp.json`, a\n  project's `.mcp.json`). Workers never get Claude Code's own connectors or plugins directly; this is how\n  they reach them.\n- **A project can name connectors every task in it gets** (on the project's page), so a browser for one\n  repository is set once.\n- The manager and the workers now know all this: a worker names a missing tool in its report, and the\n  manager tells you how to set it up instead of treating it as a dead end.\n\nNot yet: connectors that only run inside a project's folder (such as a framework's own helper).",
+  "published": "2026-11-13T11:22:45.496Z",
+  "page": "https://github.com/jannikco/heybotos/releases/tag/v0.5.1",
   "files": {
     "darwin-arm64": {
-      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.0/HeyBotOS-0.5.0-arm64.zip",
-      "sha256": "cd5e77bb6adecf436d133637acace819409b066a4bc37266488e655aaf939e44",
-      "size": 121645441
+      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.1/HeyBotOS-0.5.1-arm64.zip",
+      "sha256": "91ea3fe612f6c3191efe444ab92c5e5765cf139290a06a0b30a78406ab15c1af",
+      "size": 121649474
     },
     "darwin-x64": {
-      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.0/HeyBotOS-0.5.0-x64.zip",
-      "sha256": "8c4eabfa001dd5d1746b44c8490d2979bc5d9166bbac5ed3a12cf4b4aae2e069",
-      "size": 128776631
+      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.1/HeyBotOS-0.5.1-x64.zip",
+      "sha256": "6552d9e6026abc60a5b8bc3deab4e003bcc984281f76f20ae90e6c9aae944b07",
+      "size": 128780664
     },
     "linux-x64": {
-      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.0/HeyBotOS-0.5.0-linux-x64.tar.gz",
-      "sha256": "26f68376848c00f0de65cf711f13fa84dc2e5613a948c22c0ed18e05b5786a84",
-      "size": 125030963
+      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.1/HeyBotOS-0.5.1-linux-x64.tar.gz",
+      "sha256": "457cd7ca2bf42d859233cd506d2cbf3166fb528146b3c7b69b6c4de3f8c49708",
+      "size": 125039692
     },
     "linux-arm64": {
-      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.0/HeyBotOS-0.5.0-linux-arm64.tar.gz",
-      "sha256": "dc31a3f0db16db78f65eb975a93211e5902cf05e3d7e5a9af3e5e0d4b955fc25",
-      "size": 126110250
+      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.1/HeyBotOS-0.5.1-linux-arm64.tar.gz",
+      "sha256": "ef49e8a8038f818e4e3fd1810bb30aaeef906de9c444cc7935ce683a26abdd66",
+      "size": 126116523
     },
     "win32-x64": {
-      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.0/HeyBotOS-0.5.0-win-x64-setup.exe",
-      "sha256": "12fa1b42ed83992df86ac305dd8aa4191681733181c6ad458ee877ccd2aaf842",
-      "size": 116660916
+      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.1/HeyBotOS-0.5.1-win-x64-setup.exe",
+      "sha256": "d3140656da6ad03d040f554fbd05073e0c9d426b8609db147099c058797a9fd8",
+      "size": 116669162
     },
     "deb-x64": {
-      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.0/heybotos_0.5.0_amd64.deb",
-      "sha256": "69ff8b8698ea67bf13af473a67533d9c0a9bdfc8612ecec61f6e863099605583",
-      "size": 98468328
+      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.1/heybotos_0.5.1_amd64.deb",
+      "sha256": "a641da29ea182f29caf98a6ecc20a06db3d10ebb402b0b30e7ca8d685b980d73",
+      "size": 98472826
     },
     "deb-arm64": {
-      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.0/heybotos_0.5.0_arm64.deb",
-      "sha256": "f1489781fe7b91af7a5020c70791f85a4ffed6dea8c590baf8efaa1df3afd377",
-      "size": 98455838
+      "url": "https://github.com/jannikco/heybotos/releases/download/v0.5.1/heybotos_0.5.1_arm64.deb",
+      "sha256": "d17a049e142f9c3057a672ac6597f922f22e0c78cddabe1269860c652b4b6646",
+      "size": 98458056
     }
   }
 }
